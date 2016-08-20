@@ -2,12 +2,36 @@
 
 TODO:
 - better updating of the JSFX
-
+- more professional function scoping/naming
 --]]
 
+----------------------------------------------------------------------------------
 function DBG(str)
-  --reaper.ShowConsoleMsg(str.."\n")
+  reaper.ShowConsoleMsg(str.."\n")
 end
+
+
+----------------------------------------------------------------------------------
+function round(num, idp)
+  local mult = 10^(idp or 0)
+  return math.floor(num * mult + 0.5) / mult
+end
+
+----------------------------------------------------------------------------------
+function hasbit(x, p)
+  return x % (p + p) >= p       
+end
+
+----------------------------------------------------------------------------------
+function setbit(x, p)
+  return hasbit(x, p) and x or x + p
+end
+
+----------------------------------------------------------------------------------
+function clearbit(x, p)
+  return hasbit(x, p) and x - p or x
+end
+
 
 
 ----------------------------------------------------------------------------------
@@ -256,7 +280,7 @@ end
 
 ----------------------------------------------------------------------------------
 -- returns the relevant take for the midi editor, or selected track, at edit cursor.
-local function findExistingTake()
+function findExistingTake()
 	local take = nil
 
 	local midiEditor = reaper.MIDIEditor_GetActive()
@@ -316,15 +340,24 @@ end
 local function ensureTakePosLastsUntil(take, requestedEndTime)
 	local mediaItem = reaper.GetMediaItemTake_Item(take)
 
-  local existingEndTime = reaper.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
+  local existingStartTime = reaper.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+  local existingLength = reaper.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
+  local existingEndTime = existingStartTime + existingLength
   if(existingEndTime >= requestedEndTime) then
+  	--DBG("not adjusting take length. "..existingEndTime.." >= "..requestedEndTime)
   	return
   end
 
-  local existingStartTime = reaper.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
   local existingStartQN = reaper.TimeMap2_timeToQN(0, existingStartTime)
 
   local newEndQN = reaper.TimeMap2_timeToQN(0, requestedEndTime)
+
+ 	-- DBG("Adjusting take length because "..existingEndTime.." < "..requestedEndTime)
+ 	-- DBG("  existingEndTime: "..existingEndTime)
+ 	-- DBG("  requestedEndTime: "..requestedEndTime)
+ 	-- DBG("  existingStartTime: "..existingStartTime)
+ 	-- DBG("  existingStartQN: "..existingStartQN)
+ 	-- DBG("  newEndQN: "..newEndQN)
 
 	reaper.MIDI_SetItemExtents(mediaItem, existingStartQN, newEndQN)
 
@@ -341,7 +374,8 @@ local function SnapToMeasure(time)
 end
 
 
-local function getHeldNotes(track)
+-- returns an array of { note, chan, velocity }
+function getHeldNotes(track)
 
 	local iHelper = getOrAddInputFx(track, jsfx, true)
 
@@ -454,6 +488,44 @@ function getExistingHeldNotesInfo()
 	return take, track, pitches, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ
 end
 
+
+
+
+----------------------------------------------------------------------------------
+-- returns an array of { index, pitch, velocity, channel, startPPQ, endPPQ }, sorted from top to bottom
+function getNotesStartingAtCursor(take, track)
+	-- basically enum notes and find ones that start near the cursor
+	local cursorTime = reaper.GetCursorPosition();
+	local cursorPPQ = reaper.MIDI_GetPPQPosFromProjTime(take, cursorTime)
+
+	--Lua: integer retval, number notecntOut, number ccevtcntOut, number textsyxevtcntOut
+	local ret, noteCount, _, _ = reaper.MIDI_CountEvts(take)
+
+	-- let's build a list of note indices corresponding to the notes you're holding down
+	-- at the same time, figure out the duration of those notes. for simplicity, just take the first duration.
+	local notes = {}
+	for i = 0, noteCount - 1 do
+		local _, _, _, startPPQ, endPPQ, channel, pitch, velocity = reaper.MIDI_GetNote(take, i)
+		--DBG("is note "..i..", ")
+		if math.abs(startPPQ - cursorPPQ) < 5 then
+			notes[#notes + 1] = {
+				index = i,
+				pitch = pitch,
+				velocity = velocity,
+				channel = channel,
+				startPPQ = startPPQ,
+				endPPQ = endPPQ
+			}
+		end
+	end
+
+	table.sort(notes, function(a, b)
+		return a.pitch >= b.pitch
+		end);
+
+	return notes
+end
+
 ----------------------------------------------------------------------------------
 function addDotToHeldNotesDuration()
 	local take, track, _, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ = getExistingHeldNotesInfo()
@@ -551,5 +623,55 @@ function moveCursorByGridSizeAndAlterDurationOfHeldNotes(gridSteps)
 	reaper.UpdateItemInProject(mediaItem)-- make certain the project bounds has been updated to reflect the newly recorded item
 	reaper.MoveEditCursor(newEndTime - reaper.GetCursorPosition(), false)
 end
+
+
+
+----------------------------------------------------------------------------------
+-- oldNotes is an array of { index, pitch, velocity, channel, startPPQ, endPPQ }, sorted top to bottom
+-- newNotes is an array of { note, chan, velocity }, also sorted top to bottom
+-- this function replaces the pitches of oldNotes with newNotes.
+-- if newNotes is bigger than oldNotes, then the last oldNote velocity & note length are used to insert new ones.
+-- if oldNotes is bigger, than erase the remaining oldNotes.
+-- another possibility is to use the recorded velocity, but i think in the spirit of replacing the voicing,
+-- it's best to preserve the velocity that was previously recorded.
+function replaceChord(take, oldNotes, newNotes)
+
+	for i = 1, math.min(#oldNotes, #newNotes) do
+	  -- replace old with new
+	  -- reaper.MIDI_SetNote(MediaItem_Take take,
+	  -- noteidx, selected, muted, startppqpos, endppqposIn, chanIn, pitch, velIn, noSort)
+		reaper.MIDI_SetNote(take, oldNotes[i].index, nil, nil, nil, nil, nil, newNotes[i].note, nil, nil)
+		DBG("Replacing note index "..oldNotes[i].index..", note "..oldNotes[i].pitch.." -> "..newNotes[i].note)
+	end
+	if #oldNotes > #newNotes then
+		-- delete old notes. need to be careful though to only erase in descending index order.
+		local indicesToDelete = {};
+		for i = #newNotes+1, #oldNotes do
+			indicesToDelete[#indicesToDelete+1] = oldNotes[i].index
+		end
+	
+		table.sort(indicesToDelete, function(a,b) return a > b end)-- sort desc.
+
+		for i = 1, #indicesToDelete do
+			reaper.MIDI_DeleteNote(take, indicesToDelete[i])
+			DBG("deleting note index "..indicesToDelete[i])
+		end
+	elseif #newNotes > #oldNotes then
+		-- insert new notes. use velocity, channel, length of the last old note.
+		for i = #oldNotes+1, #newNotes do
+			local model = oldNotes[#oldNotes]
+			-- take, selected, muted
+			reaper.MIDI_InsertNote(take, true, false, model.startPPQ, model.endPPQ, model.channel, newNotes[i].note, model.velocity)
+			DBG("Inserting note "..newNotes[i].note)
+		end
+	end
+
+
+end
+
+
+
+
+
 
 
