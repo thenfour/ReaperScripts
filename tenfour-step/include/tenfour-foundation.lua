@@ -7,7 +7,7 @@ TODO:
 
 ----------------------------------------------------------------------------------
 function DBG(str)
-  reaper.ShowConsoleMsg(str.."\n")
+  --reaper.ShowConsoleMsg(str.."\n")
 end
 
 

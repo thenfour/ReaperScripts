@@ -47,12 +47,9 @@ Once the files are copied, you can immediately assign the scripts to key binding
 `tenfour-MIDIChordState`
 
 ##TODO
-More actions.
+More actions. Better docs. Maybe some options. Visual feedback. For example I'd love to see a little message explaining what just changed.
 
-- Rotate voicing up
-- Rotate voicing down
 - Play the chord at the edit cursor (basically a oneshot scrub at the cursor)
-- Different ways of 
 
 ##Questions
 Feel free to contact me via twitter [@tenfour2](https://twitter.com/tenfour2). I am pretty new to Reaper so don't hesitate to give me feedback / tips / design ideas / feature requests / criticism / patches.
