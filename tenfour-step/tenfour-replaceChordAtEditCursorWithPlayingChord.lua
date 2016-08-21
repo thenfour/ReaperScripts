@@ -40,6 +40,8 @@ end
 
 replaceChord(take, oldNotes, newNotes)
 
+reaper.UpdateItemInProject(mediaItem)
+
 
 DBG("}")
 reaper.Undo_EndBlock("tenfour - Replace chord at edit cursor with playing chord", -1)

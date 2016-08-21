@@ -1,4 +1,9 @@
-SCR 4 0 RS24c5ec3bf519fa0f718d4ce00b6a5faee24f1f62 "Custom: tenfour-addDotToHeldNotes.lua" tenfour-step/tenfour-addDotToHeldNotes.lua
+SCR 4 0 RSdd84083b64f753d7545d992074c775a440429957 "Custom: tenfour-extendHeldNotesAtEditCursor_Eighth.lua" tenfour-step/tenfour-extendHeldNotesAtEditCursor_Eighth.lua
+SCR 4 0 RSb113d67f09b1daf6bd208133419f8c11cc3fe514 "Custom: tenfour-extendHeldNotesAtEditCursor_Half.lua" tenfour-step/tenfour-extendHeldNotesAtEditCursor_Half.lua
+SCR 4 0 RSba1d8611dd5c03a4ca925c885e97c013418b6905 "Custom: tenfour-extendHeldNotesAtEditCursor_Quarter.lua" tenfour-step/tenfour-extendHeldNotesAtEditCursor_Quarter.lua
+SCR 4 0 RS5a5eb0d85a76cee92d54e53097d9f66cac453829 "Custom: tenfour-extendHeldNotesAtEditCursor_Sixteenth.lua" tenfour-step/tenfour-extendHeldNotesAtEditCursor_Sixteenth.lua
+SCR 4 0 RSe6189e9b74f811ff127f79e2c2efcd33ecb1af8a "Custom: tenfour-extendHeldNotesAtEditCursor_Thirtysecond.lua" tenfour-step/tenfour-extendHeldNotesAtEditCursor_Thirtysecond.lua
+SCR 4 0 RS2a69ddc2209c33dad6842a1e162b2fcc23462d9a "Custom: tenfour-extendHeldNotesAtEditCursor_Whole.lua" tenfour-step/tenfour-extendHeldNotesAtEditCursor_Whole.lua
 SCR 4 0 RSf73219d99d054d30b0da4c943b9d92eadc1accea "Custom: tenfour-insertHeldNotesAtEditCursor_Eighth.lua" tenfour-step/tenfour-insertHeldNotesAtEditCursor_Eighth.lua
 SCR 4 0 RSdc4cf60ef4d9e7749bacfd1a034b92da35360c63 "Custom: tenfour-insertHeldNotesAtEditCursor_Half.lua" tenfour-step/tenfour-insertHeldNotesAtEditCursor_Half.lua
 SCR 4 0 RS6f9bddbae08f47d6017ff7f7f56624968ad44504 "Custom: tenfour-insertHeldNotesAtEditCursor_Quarter.lua" tenfour-step/tenfour-insertHeldNotesAtEditCursor_Quarter.lua
@@ -12,17 +17,22 @@ SCR 4 0 RS30c64e9094742d266765171dfcf36d92c017c17f "Custom: tenfour-replaceChord
 SCR 4 0 RS5d8774bd9ec991e510bfae5fa5d6f777804358c9 "Custom: tenfour-rotateVoicingDownAtEditCursor.lua" tenfour-step/tenfour-rotateVoicingDownAtEditCursor.lua
 SCR 4 0 RSd0097dc4755ee1aae0f6d13d756c0ac6db30d74c "Custom: tenfour-rotateVoicingUpAtEditCursor.lua" tenfour-step/tenfour-rotateVoicingUpAtEditCursor.lua
 SCR 4 0 RSbd9b5b9fd3077894a56cf5ad80abc2755b738765 "Custom: tenfour-unarmAllTracksExceptSelectedTrack.lua" tenfour-step/tenfour-unarmAllTracksExceptSelectedTrack.lua
-KEY 0 46 _RS24c5ec3bf519fa0f718d4ce00b6a5faee24f1f62 0
+KEY 0 36 _RSdd84083b64f753d7545d992074c775a440429957 0
+KEY 0 94 _RSb113d67f09b1daf6bd208133419f8c11cc3fe514 0
+KEY 0 37 _RSba1d8611dd5c03a4ca925c885e97c013418b6905 0
+KEY 0 35 _RS5a5eb0d85a76cee92d54e53097d9f66cac453829 0
+KEY 0 64 _RSe6189e9b74f811ff127f79e2c2efcd33ecb1af8a 0
+KEY 0 38 _RS2a69ddc2209c33dad6842a1e162b2fcc23462d9a 0
 KEY 1 52 _RSf73219d99d054d30b0da4c943b9d92eadc1accea 0
 KEY 1 54 _RSdc4cf60ef4d9e7749bacfd1a034b92da35360c63 0
 KEY 1 53 _RS6f9bddbae08f47d6017ff7f7f56624968ad44504 0
 KEY 1 51 _RS5902933a3b965da3d5b45875621719f5de386159 0
 KEY 1 50 _RS3402b71cacb44e02b7543f017e658752d999f8f2 0
 KEY 1 55 _RS8672d0e7617f0f8366e7affce86309689be4cff2 0
-KEY 1 32805 _RS34466d0f64707168c47729254d57fda229811f26 0
-KEY 1 32807 _RSb6970e1a9cc72e5f908acc8b1dbd8165c2fa8dbe 0
-KEY 5 13 _RS1054f660162c1af631ed43d99ced48ea1bd8ba1b 0
-KEY 1 13 _RS30c64e9094742d266765171dfcf36d92c017c17f 0
-KEY 17 40 _RS5d8774bd9ec991e510bfae5fa5d6f777804358c9 0
-KEY 17 38 _RSd0097dc4755ee1aae0f6d13d756c0ac6db30d74c 0
+KEY 5 37 _RS34466d0f64707168c47729254d57fda229811f26 0
+KEY 5 39 _RSb6970e1a9cc72e5f908acc8b1dbd8165c2fa8dbe 0
+KEY 1 13 _RS1054f660162c1af631ed43d99ced48ea1bd8ba1b 0
+KEY 5 13 _RS30c64e9094742d266765171dfcf36d92c017c17f 0
+KEY 17 32808 _RS5d8774bd9ec991e510bfae5fa5d6f777804358c9 0
+KEY 17 32806 _RSd0097dc4755ee1aae0f6d13d756c0ac6db30d74c 0
 KEY 1 90 _RSbd9b5b9fd3077894a56cf5ad80abc2755b738765 0

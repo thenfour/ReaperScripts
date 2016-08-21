@@ -68,6 +68,7 @@ for i = 1, #newNotes do
 end
 
 replaceChord(take, oldNotes, newNotes)
+reaper.UpdateItemInProject(mediaItem)
 
 
 DBG("}")

@@ -7,7 +7,7 @@ TODO:
 
 ----------------------------------------------------------------------------------
 function DBG(str)
-  --reaper.ShowConsoleMsg(str.."\n")
+  reaper.ShowConsoleMsg(str.."\n")
 end
 
 
@@ -120,13 +120,13 @@ local function setGridDivision(divData)
 		local midiEditor = reaper.MIDIEditor_GetActive()
 	  local mode = reaper.MIDIEditor_GetMode(midiEditor)
 	  if IsInMIDIEditor() and (mode ~= -1) then-- -1 if ME not focused
-	  	DBG("running MIDI Editor command "..divData.mecid)
+	  	DBG("running MIDI Editor command "..divData.mecid.." to change grid to "..divData.desc)
 			reaper.MIDIEditor_OnCommand(midiEditor, divData.mecid)
 		end
 	end
 
 	if divData.maincid then
-	  DBG("running Main command "..divData.maincid)
+	  DBG("running Main command "..divData.maincid.." to change grid to "..divData.desc)
 		reaper.Main_OnCommand(divData.maincid, 0)
 	end
 end
@@ -153,10 +153,12 @@ function MoveEditCursorByGridSize(gridSteps)
 	local midiEditor = reaper.MIDIEditor_GetActive()
   local mode = reaper.MIDIEditor_GetMode(midiEditor)
   if IsInMIDIEditor() and (mode ~= -1) then-- -1 if ME not focused
+  	DBG("running MIDI editor command "..mecid)
 		reaper.MIDIEditor_OnCommand(midiEditor, mecid)
 		return
 	end
 
+  DBG("running MAIN command "..maincid)
 	reaper.Main_OnCommand(maincid, 0)
 end
 
@@ -291,14 +293,14 @@ function findExistingTake()
 		if reaper.ValidatePtr(take, 'MediaItem_Take*') then--check that it's an actual take (in case of empty MIDI editor)
 			return take
 		end
-		--DBG("no valid current take in midi editor.")
+		DBG("no valid current take in midi editor.")
 	end
 
 	-- attempt to find take by selected track / cursor pos.
 	--DBG("attempt to find take by selected track / cursor pos.")
 	local selectedTrackCount = reaper.CountSelectedTracks(0)
 	if selectedTrackCount < 1 then
-		--DBG("no selected track anyway...")
+		DBG("no selected track anyway...")
 		return nil
 	end
 
@@ -309,12 +311,18 @@ function findExistingTake()
 	local mediaItemCount = reaper.CountTrackMediaItems(track)
 	for i = 0, mediaItemCount - 1 do
 		local mediaItem = reaper.GetTrackMediaItem(track, i)
-		local pos = reaper.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+		local pos = reaper.GetMediaItemInfo_Value(mediaItem, "D_POSITION")-- in TIME
 		local len = reaper.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
+		-- fudge it a bit.
+		local fudge = 0.002
+		pos = pos - fudge
+		len = len + fudge + fudge
 		--DBG("media item "..i.." / pos "..pos.." / len "..len.." / cursorpos "..cursorPos)
 		if cursorPos >= pos and cursorPos <= (pos + len) then
-			--DBG("this media item works fine.")
+			DBG("found a media item.")
 			return reaper.GetActiveTake(mediaItem)
+		else
+			--DBG("media item not suitable. cursor "..cursorPos.." is not within ("..pos.." , "..pos+len..")")
 		end
 	end
 
@@ -381,11 +389,12 @@ function getHeldNotes(track)
 
 	-- read the notes of the helper fx
 	local heldNoteCount = reaper.TrackFX_GetParam(track, iHelper, jsfx.paramIndex_NotesInBuffer)
-  local pitches={}
 
 	if heldNoteCount < 1 then
-		return pitches
+		return {}
 	end
+
+  local pitches={}
 
   for i = 1, heldNoteCount, 1 do
     reaper.TrackFX_SetParam(track, iHelper, jsfx.paramIndex_NoteQueryIndex, i - 1)
@@ -443,14 +452,20 @@ function insertPlayingMIDINotesAtCursor(options)
 	adjustGridToCursorAndInsertedNote(options.noteLengthQN)
 end
 
+
+
+
 ----------------------------------------------------------------------------------
 -- for functions that assume you just added notes.
 -- your cursor should be sitting on the end of notes you're playing.
 -- this function returns a bunch of info about the current status.
 --
+-- if catchAllIfNoneArePlaying = true,
+-- then if you're not holding any notes on your keyboard, we match any notes.
+--
 -- returns:
 -- take, track, heldPitches, heldNoteIndices, oldDurationPPQ
-function getExistingHeldNotesInfo()
+function getExistingHeldNotesInfo(catchAllIfNoneArePlaying)
 	local take = findExistingTake()
 	if not take then
 		DBG("can't elongate notes; no available take.")
@@ -477,11 +492,17 @@ function getExistingHeldNotesInfo()
 	for i = 0, noteCount - 1 do
 		local _, selected, muted, startppq, endppq, _, pitch, _ = reaper.MIDI_GetNote(take, i)
 		--DBG("note "..i.." startppq="..startppq.." endppq="..endppq.." cursorppq="..cursorPPQ.." pitch="..pitch)
-		for _,v in pairs(pitches) do
-			if (v.note == pitch) and math.abs(endppq - cursorPPQ) < 5 then
-				heldIndices[#heldIndices + 1] = i
-				oldDurationPPQ = endppq - startppq
+		if #pitches > 0 then
+			for _,v in pairs(pitches) do
+				if (v.note == pitch) and math.abs(endppq - cursorPPQ) < 5 then
+					heldIndices[#heldIndices + 1] = i
+					oldDurationPPQ = endppq - startppq
+				end
 			end
+		else
+			-- you're not holding any notes, match all.
+			heldIndices[#heldIndices + 1] = i
+			oldDurationPPQ = endppq - startppq
 		end
 	end
 
@@ -520,65 +541,10 @@ function getNotesStartingAtCursor(take, track)
 	end
 
 	table.sort(notes, function(a, b)
-		return a.pitch >= b.pitch
+		return a.pitch > b.pitch
 		end);
 
 	return notes
-end
-
-----------------------------------------------------------------------------------
-function addDotToHeldNotesDuration()
-	local take, track, _, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ = getExistingHeldNotesInfo()
-
-	local take = findExistingTake()
-	if not take then
-		DBG("can't elongate notes; no available take.")
-		return
-	end
-	if #heldIndices < 1 then
-		DBG("no relevant notes to elongate; abandoning")
-		return
-	end
-
-	-- we want to add a little bit to help nudge the algorithm. basically if your note length is 0.9999 beats, 
-	-- we want it to satisfy the comparison "is at least a beat?"
-	oldDurationPPQ = oldDurationPPQ + 1
-	local oldDurationQN = reaper.MIDI_GetProjQNFromPPQPos(take, oldDurationPPQ)
-	--DBG("old duration (QN): "..oldDurationQN..", ppq="..oldDurationPPQ)
-
-	-- calculate the elongation / new end ppq
-	-- in almost all cases, and even cases that aren't obvious, what you really want to do is subdivide the grid.
-	-- so take the existing "ideal" grid, and just divide it in half.
-	local dotDivData = findBestGridValueForTime(cursorTime, oldDurationQN)
-	if not dotDivData then
-		DBG("no suitable division found. maybe note too short.")
-		return
-	end
-
-	--DBG("dot duration chosen QN: "..(dotDivData.QN/2)..", desc=half of "..dotDivData.desc)
-
-	--local cursorTime = 
-	--local cursorPPQ = 
-	local cursorQN = reaper.MIDI_GetProjQNFromPPQPos(take, cursorPPQ)
-
-	local newEndQN = cursorQN + (dotDivData.QN/2)
-	local newEndPPQ = reaper.MIDI_GetPPQPosFromProjQN(take, newEndQN)
-	local newEndTime = reaper.MIDI_GetProjTimeFromPPQPos(take, newEndPPQ)
-
-	-- ensure the take is big enough to hold the new duration. snap it.
-	local _, takeEnd = SnapToMeasure(newEndTime)
-	ensureTakePosLastsUntil(take, takeEnd)
-
-	for i = 1, #heldIndices do
-		reaper.MIDI_SetNote(take, heldIndices[i], nil, nil, nil, newEndPPQ, nil, nil, nil, nil)
-	end
-
-	local mediaItem = reaper.GetMediaItemTake_Item(take)
-	reaper.UpdateItemInProject(mediaItem)-- make certain the project bounds has been updated to reflect the newly recorded item
-	reaper.MoveEditCursor(newEndTime - reaper.GetCursorPosition(), false)
-
-	adjustGridToCursorAndInsertedNote(dotDivData.QN/2)
-
 end
 
 
@@ -587,33 +553,24 @@ function moveCursorByGridSizeAndAlterDurationOfHeldNotes(gridSteps)
 	local take, track, _, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ = getExistingHeldNotesInfo()
 
 	local take = findExistingTake()
+
+	MoveEditCursorByGridSize(gridSteps)
+
 	if not take then
 		DBG("can't change note duration; no available take.")
-		MoveEditCursorByGridSize(gridSteps)
 		return
 	end
 	if #heldIndices < 1 then
 		DBG("no relevant notes to elongate; abandoning")
-		MoveEditCursorByGridSize(gridSteps)
 		return
 	end
 
-	local gridSizeQN, _, _ = reaper.MIDI_GetGrid(take)
-	local cursorQN = reaper.MIDI_GetProjQNFromPPQPos(take, cursorPPQ)
-
-	-- another option for finding the new cursor pos is reaper.SnapToGrid(ReaProject project, number time_pos)
-	-- doubt it matters.
-	local newEndQN = cursorQN + (gridSizeQN * gridSteps)
-	local newEndPPQ = reaper.MIDI_GetPPQPosFromProjQN(take, newEndQN)
-	local newEndTime = reaper.MIDI_GetProjTimeFromPPQPos(take, newEndPPQ)
+	local newEndTime = reaper.GetCursorPosition()
+	local newEndPPQ = reaper.MIDI_GetPPQPosFromProjTime(take, newEndTime)
 
 	-- ensure the take is big enough to hold the new duration. snap it.
 	local _, takeEnd = SnapToMeasure(newEndTime)
 	ensureTakePosLastsUntil(take, takeEnd)
-
-	-- no need to ever extend the media leftwards, because we don't allow setting negative durations.
-
-	-- speaking of which, make sure NO notes will get negative durations.
 
 	for i = 1, #heldIndices do
 		reaper.MIDI_SetNote(take, heldIndices[i], nil, nil, nil, newEndPPQ, nil, nil, nil, nil)
@@ -621,7 +578,41 @@ function moveCursorByGridSizeAndAlterDurationOfHeldNotes(gridSteps)
 
 	local mediaItem = reaper.GetMediaItemTake_Item(take)
 	reaper.UpdateItemInProject(mediaItem)-- make certain the project bounds has been updated to reflect the newly recorded item
+end
+
+
+
+----------------------------------------------------------------------------------
+function extendPlayingMIDINotesAtCursor(options)
+	local take, track, _, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ = getExistingHeldNotesInfo()
+
+	local take = findExistingTake()
+
+	if not take then
+		DBG("can't change note duration; no available take.")
+		return
+	elseif #heldIndices < 1 then
+		DBG("no relevant notes to elongate; abandoning")
+		return
+	end
+
+	-- i need to calculate the new note end time/ppq/qn
+	local cursorProjQN = reaper.MIDI_GetProjQNFromPPQPos(take, cursorPPQ)
+	local newEndProjQN = cursorProjQN + options.noteLengthQN
+	local newEndPPQ = reaper.MIDI_GetPPQPosFromProjQN(take, newEndProjQN)
+	local newEndTime = reaper.MIDI_GetProjTimeFromPPQPos(take, newEndPPQ)
+
+	-- ensure the take is big enough to hold the new duration. snap it.
+	local _, takeEnd = SnapToMeasure(newEndTime)
+	ensureTakePosLastsUntil(take, takeEnd)
+
+	for i = 1, #heldIndices do
+		reaper.MIDI_SetNote(take, heldIndices[i], nil, nil, nil, newEndPPQ, nil, nil, nil, nil)
+	end
+
+	local mediaItem = reaper.GetMediaItemTake_Item(take)
 	reaper.MoveEditCursor(newEndTime - reaper.GetCursorPosition(), false)
+	reaper.UpdateItemInProject(mediaItem)-- make certain the project bounds has been updated to reflect the newly recorded item
 end
 
 

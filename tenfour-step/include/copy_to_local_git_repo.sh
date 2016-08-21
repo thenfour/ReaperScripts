@@ -12,8 +12,6 @@ echo ''
 echo 'deleting existing...'
 rm -rfv ~/github/ReaperScripts/tenfour-step
 
-
-
 echo ''
 echo ''
 echo 'copying...'
@@ -22,6 +20,3 @@ cp -rv tenfour-step ~/github/ReaperScripts/
 echo ''
 echo ''
 echo 'copied.'
-
-
-
