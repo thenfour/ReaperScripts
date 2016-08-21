@@ -7,7 +7,7 @@ TODO:
 
 ----------------------------------------------------------------------------------
 function DBG(str)
-  reaper.ShowConsoleMsg(str.."\n")
+  --reaper.ShowConsoleMsg(str.."\n")
 end
 
 
@@ -499,7 +499,7 @@ function getExistingHeldNotesInfo(catchAllIfNoneArePlaying)
 					oldDurationPPQ = endppq - startppq
 				end
 			end
-		else
+		elseif catchAllIfNoneArePlaying then
 			-- you're not holding any notes, match all.
 			heldIndices[#heldIndices + 1] = i
 			oldDurationPPQ = endppq - startppq
@@ -550,7 +550,7 @@ end
 
 ----------------------------------------------------------------------------------
 function moveCursorByGridSizeAndAlterDurationOfHeldNotes(gridSteps)
-	local take, track, _, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ = getExistingHeldNotesInfo()
+	local take, track, _, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ = getExistingHeldNotesInfo(true)
 
 	local take = findExistingTake()
 
@@ -584,7 +584,7 @@ end
 
 ----------------------------------------------------------------------------------
 function extendPlayingMIDINotesAtCursor(options)
-	local take, track, _, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ = getExistingHeldNotesInfo()
+	local take, track, _, heldIndices, oldDurationPPQ, cursorTime, cursorPPQ = getExistingHeldNotesInfo(true)
 
 	local take = findExistingTake()
 
