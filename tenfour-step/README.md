@@ -13,6 +13,13 @@ Here's a 3-minute video I made to quickly demonstrate what this script does: htt
 
 I should probably make more videos as I make updates. Reading goes against my principle of making everything as intuitive & simple as possible.
 
+##Dev Status
+Pre-Alpha.
+
+As of Aug 2016, I just started this and I am making pretty sweeping changes at the moment, trying to figure out exactly the right combination of features. For example I gave up on the concept of "add dotted length". I think it's much simpler to just extend the duration by a specified length. When things settle in and big changes slow down, then I would feel comfortable saying it's stable.
+
+Things definitely work, and I'm using it. But it cannot be considered stable without more testing under different configurations and workflows.
+
 ##Installation
 Copy the "tenfour-step" folder to your Reaper scripts directory. The result on Mac should look be:
 
@@ -20,39 +27,62 @@ Copy the "tenfour-step" folder to your Reaper scripts directory. The result on M
 
 The scripts should work equally well on Windows, though I haven't tested it, and I don't know where the scripts directory is on Windows.
 
-Once the files are copied, you can immediately assign the scripts to key bindings via the Action List. Or, to use my default keys, edit / import the packaged `tenfour-step.ReaperKeyMap`.
+Once the files are copied, you can immediately assign the scripts to key bindings via the Action List. Or, to use my default keys, edit / import the packaged `tenfour-step-main.ReaperKeyMap` and `tenfour-step-midieditor.ReaperKeyMap`.
 
 
-##List of Scripts
-- tenfour-addDotToHeldNotes.lua
-- tenfour-insertHeldNotesAtEditCursor_Eighth.lua
-- tenfour-insertHeldNotesAtEditCursor_Half.lua
-- tenfour-insertHeldNotesAtEditCursor_Quarter.lua
-- tenfour-insertHeldNotesAtEditCursor_Sixteenth.lua
-- tenfour-insertHeldNotesAtEditCursor_Thirtysecond.lua
-- tenfour-insertHeldNotesAtEditCursor_Whole.lua
-- tenfour-moveCursorLeftByGridSizeAndAlterDurationOfHeldNotes.lua
-- tenfour-moveCursorRightByGridSizeAndAlterDurationOfHeldNotes.lua
-- tenfour-replaceChordAtEditCursorWithPlayingChord.lua
-- tenfour-replaceChordAtEditCursorWithPlayingChordPreservingOriginalOctave.lua
-- tenfour-rotateVoicingDownAtEditCursor.lua
-- tenfour-rotateVoicingUpAtEditCursor.lua
-- tenfour-unarmAllTracksExceptSelectedTrack.lua
+##List of Scripts & Default Keybindings
+| Key   | Script |
+|----------|-------------|
+| shift+4 | tenfour-extendHeldNotesAtEditCursor_Eighth.lua |
+| shift+6 | tenfour-extendHeldNotesAtEditCursor_Half.lua |
+| shift+5 | tenfour-extendHeldNotesAtEditCursor_Quarter.lua |
+| shift+3 | tenfour-extendHeldNotesAtEditCursor_Sixteenth.lua |
+| shift+2 | tenfour-extendHeldNotesAtEditCursor_Thirtysecond.lua |
+| shift+7 | tenfour-extendHeldNotesAtEditCursor_Whole.lua |
+
+| Key   | Script |
+|----------|-------------|
+| 4 | tenfour-insertHeldNotesAtEditCursor_Eighth.lua |
+| 6 | tenfour-insertHeldNotesAtEditCursor_Half.lua |
+| 5 | tenfour-insertHeldNotesAtEditCursor_Quarter.lua |
+| 3 | tenfour-insertHeldNotesAtEditCursor_Sixteenth.lua |
+| 2 | tenfour-insertHeldNotesAtEditCursor_Thirtysecond.lua |
+| 7 | tenfour-insertHeldNotesAtEditCursor_Whole.lua |
+
+| Key   | Script |
+|----------|-------------|
+| shift+left | tenfour-moveCursorLeftByGridSizeAndAlterDurationOfHeldNotes.lua |
+| shift+right | tenfour-moveCursorRightByGridSizeAndAlterDurationOfHeldNotes.lua |
+| enter | tenfour-replaceChordAtEditCursorWithPlayingChord.lua |
+| shift+enter | tenfour-replaceChordAtEditCursorWithPlayingChordPreservingOriginalOctave.lua |
+| alt+down | tenfour-rotateVoicingDownAtEditCursor.lua |
+| alt+up | tenfour-rotateVoicingUpAtEditCursor.lua |
+| Z | tenfour-unarmAllTracksExceptSelectedTrack.lua |
 
 
 
-##Keybindings
+
+
+
+
 
 ##Technical Info / Caveats
-`tenfour-MIDIChordState`
+* `tenfour-MIDIChordState` will end up being tacked on to every track this uses.
+* It also means the first time you run the script, it won't do anything. It will act like you haven't pressed anything. Nothing was listening.
 
-##TODO
-More actions. Better docs. Maybe some options. Visual feedback. For example I'd love to see a little message explaining what just changed.
 
-- Play the chord at the edit cursor (basically a oneshot scrub at the cursor)
+##[TODO](TODO.md)
 
-##Questions
+
+##Questions / Contact
 Feel free to contact me via twitter [@tenfour2](https://twitter.com/tenfour2). I am pretty new to Reaper so don't hesitate to give me feedback / tips / design ideas / feature requests / criticism / patches.
+
+Official repository at https://github.com/thenfour/ReaperScripts
+
+
+##Change Log
+https://github.com/thenfour/ReaperScripts/commits/master
+
 
 ##Background / Motivation Rant
 While I have made this code public, the ongoing intention is for my own use. So there may be actions that are indeed useless to other users. Or actions that have bugs I'll never fix because I don't use it that way. Feel free to send me feature requests / suggestions / patches.
