@@ -1,0 +1,49 @@
+desc:tenfour-noisefollower
+
+slider1:.5<0,1,.01>Mix
+
+//slider3:.5<0,1,.01>Detector HP
+//slider4:.5<0,1,.01>Detector LP
+
+//slider6:.5<0,1,.01>Noise HP
+//slider7:.5<0,1,.01>Noise LP
+
+slider9:.5<0,1,.01>Width
+
+//slider11:.5<0,1,.01>Attack (ms)
+//slider12:.5<0,1,.01>Attack curve
+slider13:110<0,300,1>Release (ms)
+//slider14:.5<0,1,.01>Release curve
+
+
+@init
+detectorLevel = 0.0;
+
+@slider
+fadeout = 1/pow(10,1/(srate*slider13/1000));
+mix = slider1;
+width = (1-slider9)/2;
+
+@sample
+peakLevel = max(abs(spl0), abs(spl1));
+peakLevel > detectorLevel ? 
+(
+  detectorLevel = peakLevel;
+):(
+  detectorLevel *= fadeout;
+);
+
+orig_n0 = rand(2)-1;
+orig_n1 = rand(2)-1;
+orig_n0 *= detectorLevel;
+orig_n1 *= detectorLevel;
+
+// width
+n0 = (orig_n0 * width) + (orig_n1 * (1-width));
+n1 = (orig_n1 * width) + (orig_n0 * (1-width));
+
+// mix in
+spl0=(n0 * mix) + (spl0 * (1-mix));
+spl1=(n1 * mix) + (spl1 * (1-mix));
+
+
