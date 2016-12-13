@@ -1,49 +1,126 @@
 desc:tenfour-noisefollower
+// HP/LP copied from Simple 1-Pole Filter
 
-slider1:.5<0,1,.01>Mix
+slider1:1<0,1,.01>Mix
+slider2:0<0,1,1{Normal (Input + Noise), Filtered Input}>Output Type
 
-//slider3:.5<0,1,.01>Detector HP
-//slider4:.5<0,1,.01>Detector LP
+slider3:100<0,100,1>Detector LP
+slider4:75<0,100,1>Detector HP 
 
-//slider6:.5<0,1,.01>Noise HP
-//slider7:.5<0,1,.01>Noise LP
+slider9:1<0,1,.01>Noise Stereo Width
+slider10:0<0,1,.01>Noise Floor
+slider11:.5<0,1,.01>-Noise HP (todo)
+slider12:.5<0,1,.01>-Noise LP (todo)
 
-slider9:.5<0,1,.01>Width
-
-//slider11:.5<0,1,.01>Attack (ms)
-//slider12:.5<0,1,.01>Attack curve
-slider13:110<0,300,1>Release (ms)
-//slider14:.5<0,1,.01>Release curve
+slider15:100<0,500,1>Attack (ms)
+slider16:.5<0,1,.01>-Attack curve
+slider17:110<0,300,1>Release (ms)
+slider18:.5<0,1,.01>-Release curve
 
 
 @init
 detectorLevel = 0.0;
 
+releaseAgeSamples = 0;
+releaseOriginLevel = 0.0;
+
+attackAgeSamples = 0;
+attackOriginLevel = 0.0;
+attackTargetLevel = 0.0;
+
 @slider
-fadeout = 1/pow(10,1/(srate*slider13/1000));
+noiseFloor = slider10;
+attackLengthSamples = srate*slider15/1000;
+releaseLengthSamples =srate*slider17/1000;
 mix = slider1;
 width = (1-slider9)/2;
 
+// incoming LP
+//exp scale
+ilp_sx = 16+slider3*1.20103;
+ilp_cutoff = floor(exp(ilp_sx*log(1.059))*8.17742);
+ilp_cutoff = min(ilp_cutoff,20000);
+ilp_lp_cut = 2*$pi*ilp_cutoff;
+ilp_lp_n = 1/(ilp_lp_cut+ 3*srate);
+ilp_lp_b1 = (3*srate - ilp_lp_cut)*ilp_lp_n;
+ilp_lp_a0 = ilp_lp_cut*ilp_lp_n;
+
+// incoming HP
+//exp scale
+ihp_sx = 16+slider4*1.20103;
+ihp_cutoff = floor(exp(ihp_sx*log(1.059))*8.17742);
+ihp_cutoff = min(ihp_cutoff,20000);
+ihp_lp_cut = 2*$pi*ihp_cutoff;
+ihp_lp_n = 1/(ihp_lp_cut+ 3*srate);
+ihp_lp_b1 = (3*srate - ihp_lp_cut)*ihp_lp_n;
+ihp_lp_a0 = ihp_lp_cut*ihp_lp_n;
+
+
+
+
 @sample
-peakLevel = max(abs(spl0), abs(spl1));
-peakLevel > detectorLevel ? 
+function smootherstep(edge0, edge1, x)
 (
-  detectorLevel = peakLevel;
-):(
-  detectorLevel *= fadeout;
+  // Scale, and clamp x to 0..1 range
+  x = (x-edge0)/(edge1-edge0);
+  x = min(max(x, 0.0), 1.0);
+  // Evaluate polynomial
+  x*x*x*(x*(x*6 - 15) + 10);
+);
+function fade(age, fadeLength, originLevel, destLevel)
+(
+  x = smootherstep(0, fadeLength, age);
+  x *= (originLevel - destLevel);
+  originLevel - x;
 );
 
+// LP
+ilp_inl = (spl0+spl1)/2;
+ilp_lp_outl = 2*ilp_inl*ilp_lp_a0 + ilp_lp_outl*ilp_lp_b1;
+
+// HP
+ihp_inl = ilp_lp_outl;
+ihp_lp_outl = 2*ihp_inl*ihp_lp_a0 + ihp_lp_outl*ihp_lp_b1;
+ihp_outl=(ihp_inl-ihp_lp_outl);
+
+// detector
+peakLevel = abs(ihp_outl);
+peakLevel > detectorLevel ? 
+(
+  attackTargetLevel = max(attackTargetLevel, peakLevel);
+  detectorLevel = fade(attackAgeSamples, attackLengthSamples, attackOriginLevel, attackTargetLevel);
+  attackAgeSamples += 1;
+  // reset release
+  releaseAgeSamples = 0;
+  releaseOriginLevel = detectorLevel;
+):(
+  detectorLevel = fade(releaseAgeSamples, releaseLengthSamples, releaseOriginLevel, noiseFloor);
+  releaseAgeSamples += 1;
+  // reset attack
+  attackAgeSamples = 0;
+  attackTargetLevel = detectorLevel;
+  attackOriginLevel = detectorLevel;
+);
+
+// noise
 orig_n0 = rand(2)-1;
 orig_n1 = rand(2)-1;
-orig_n0 *= detectorLevel;
-orig_n1 *= detectorLevel;
+samples += 1;
+//orig_n0 = orig_n0 = sin(samples*840./srate);// rand(2)-1;
+orig_n0 *= detectorLevel + noiseFloor;
+orig_n1 *= detectorLevel + noiseFloor;
 
 // width
 n0 = (orig_n0 * width) + (orig_n1 * (1-width));
 n1 = (orig_n1 * width) + (orig_n0 * (1-width));
 
 // mix in
-spl0=(n0 * mix) + (spl0 * (1-mix));
-spl1=(n1 * mix) + (spl1 * (1-mix));
+slider2 == 0 ?
+(
+  spl0=(n0 * mix) + (spl0 * (1-mix));
+  spl1=(n1 * mix) + (spl1 * (1-mix));
+):(
+  spl0 = spl1 = ihp_outl;
+);
 
 
