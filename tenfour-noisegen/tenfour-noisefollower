@@ -5,34 +5,51 @@ import cookdsp.jsfx-inc
 slider1:10000<0,10000>Input LP
 slider2:5000<0,10000>Input HP 
 slider3:10<1,100>Attack ms
-slider4:80<1,1000>Release ms
+slider4:100<1,1000>Release ms
 
 slider6:.7<0,1>Wet Width
-slider7:1<0,1>Mix
-slider9:1<0,3,1{Thru, Noisy (Input + Noise), Siney (Input+Sine) - for testing, Filtered Input}>Output Type
+slider7:10000<0,10000>Wet LP
+slider8:0<0,10000>Wet HP 
+slider9:0<-40,18,0.1>Wet Gain (dB)
+slider10:0<-40,18,0.1>Dry Gain (dB)
+slider20:1<0,1,1{Noisy (Input + Noise), Filtered Input}>Output Type
 
 @init
 fol.follow(50);// use any value.
-inp_lp.lop(50);// interp
-inp_hp.hip(50);// interp
+inp_lp.butlp(50);// interp
+inp_hp.buthp(50);// interp
+
+wet_lp0.lop(50);// interp
+wet_hp0.hip(50);// interp
+wet_lp1.lop(50);// interp
+wet_hp1.hip(50);// interp
 
 @slider
 attHz = 1000/slider3;// ms to hz
 relHz = 1000/slider4;// ms to hz
-mix = slider7;
+
+wetGain = slider9 <= -40 ? (0) : (2^(slider9/6));
+dryGain = slider10 <= -40 ? (0) : (2^(slider10/6));
+
 wetWidth = slider6;
 
+inp_lp.butlp_set_freq(slider1);
+inp_hp.buthp_set_freq(slider2);
+
 fol.follow_set_freq(attHz);
-inp_lp.lop_set_freq(slider1);
-inp_hp.hip_set_freq(slider2);
+
+wet_lp0.lop_set_freq(slider7);
+wet_hp0.hip_set_freq(slider8);
+wet_lp1.lop_set_freq(slider7);
+wet_hp1.hip_set_freq(slider8);
 
 @sample
 
 // filter incoming signal.
 inputL = spl0;
 inputR = spl1;
-inputFiltered = inp_lp.lop_do((inputL + inputR) * .5);
-inputFiltered = inp_hp.hip_do(inputFiltered);
+inputFiltered = inp_lp.butlp_do((inputL + inputR) * .5);
+inputFiltered = inp_hp.buthp_do(inputFiltered);
 
 // convert sample into an envelope amplitude
 envAmp = fol.follow_do(inputFiltered);
@@ -45,32 +62,25 @@ envAmp > oldEnvAmp ? // ascending? use attack. otherwise we're releasing.
 
 oldEnvAmp = envAmp;
 
-slider9 == 0 ? (// thru
-  wetL = inputL;
-  wetR = inputR;
-);
-slider9 == 1 ? (// noise
+slider20 == 0 ? (// noise
   wetL = (rand(2)-1)*envAmp;
   wetR = (rand(2)-1)*envAmp;
   // width
   temp = wetL;
   wetL += (wetR * (1-wetWidth));
   wetR += (temp * (1-wetWidth));
+  // filter
+  wetL = wet_lp0.lop_do(wetL);
+  wetR = wet_lp1.lop_do(wetR);
+  wetL = wet_hp0.hip_do(wetL);
+  wetR = wet_hp1.hip_do(wetR);
+  // mix wet/dry
+  spl0=(wetL * wetGain) + (inputL * dryGain);
+  spl1=(wetR * wetGain) + (inputR * dryGain);
 );
-slider9 == 2 ? (// sine wave
-  wetL = (sin(pos/srate*6.28*220))*envAmp;
-  wetR = (sin(pos/srate*6.28*240))*envAmp;
-  pos += 1;
-  // width
-  temp = wetL;
-  wetL += (wetR * (1-wetWidth));
-  wetR += (temp * (1-wetWidth));
-);
-slider9 == 3 ? (// filtered input
+slider20 == 1 ? (// filtered input
   wetR = wetL = inputFiltered;
+  spl0=(wetL * wetGain);
+  spl1=(wetR * wetGain);
 );
-
-// mix wet/dry
-spl0=(wetL * mix) + (inputL * (1-mix));
-spl1=(wetR * mix) + (inputR * (1-mix));
 
