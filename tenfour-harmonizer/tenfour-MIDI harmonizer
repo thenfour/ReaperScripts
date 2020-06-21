@@ -371,7 +371,7 @@ Rot1Minnote = slider33;
 Rot2Channel = slider34;
 Rot2Velscale = slider35;
 Rot2Maxnote = slider36;
-Rote2Minnate = slider37;
+Rot2Minnote = slider37;
 
 Rot3Channel = slider38;
 Rot3Velscale = slider39;
