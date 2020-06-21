@@ -1,0 +1,568 @@
+desc:tenfour-MIDI harmonizer
+//tags: MIDI, harmonizer, transpose, unison
+// https://forum.pdpatchrepo.info/topic/10554/noob-trying-to-create-a-midi-chorder-harmonizer/7
+// https://robbykilgore.com/harmonic-expansionism/
+
+slider1:0<-48,48,1>V1 transp
+slider2:1<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V1 mode
+slider3:7<-48,48,1>V2 transp
+slider4:1<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V2 mode
+slider5:-8<-48,48,1>V3 transp
+slider6:2<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V3 mode
+slider7:-5<-48,48,1>V4 transp
+slider8:2<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V4 mode
+slider9:-7<-48,48,1>V5 transp
+slider10:2<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V5 mode
+slider11:-1<-48,48,1>V6 transp
+slider12:2<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V6 mode
+slider13:0<-48,48,1>V7 transp
+slider14:0<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V7 mode
+slider15:0<-48,48,1>V8 transp
+slider16:0<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V8 mode
+slider17:0<-48,48,1>V9 transp
+slider18:0<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>V9 mode
+
+slider19:0<-48,48,1>-V10 transp
+slider20:0<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>-V10 mode
+slider21:0<-48,48,1>-V11 transp
+slider22:0<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>-V11 mode
+slider23:0<-48,48,1>-V12 transp
+slider24:0<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>-V12 mode
+slider25:0<-48,48,1>-V13 transp
+slider26:0<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>-V13 mode
+slider27:0<-48,48,1>-V14 transp
+slider28:0<0,4,1{Off,Always,Rotate1,Rotate2,Rotate3}>-V14 mode
+
+slider29:60<0,1000,1>Min rotation time (ms)
+
+slider30:0<0,15,1>Rot1 channel
+slider31:1<0,2,.05>Rot1 velocity scale
+slider32:128<0,128,1>Rot1 midi max note
+slider33:0<0,128,1>Rot1 midi min note
+
+slider34:0<0,15,1>Rot2 channel
+slider35:1<0,2,.05>Rot2 velocity scale
+slider36:128<0,128,1>Rot2 midi max note
+slider37:0<0,128,1>Rot2 midi min note
+
+slider38:0<0,15,1>Rot3 channel
+slider39:1<0,2,.05>Rot3 velocity scale
+slider40:128<0,128,1>Rot3 midi max note
+slider41:0<0,128,1>Rot3 midi min note
+
+slider42:0<0,15,1>Always channel
+
+// Actually it would make sense to do this per-voice. It belongs with transposition.
+// maybe each voice can have its own scale, or a flag to "use global". could be interesting to be diatonic for 3 rotations,
+// then 1 rotation is chromatic.
+// Or with that you could also do polytonality.
+// this would also allow you to like, use octave/5th transposition that would always work. if you play non-diatonic
+// how would you otherwise guarantee an octave transposition?
+// 1 Chromatic
+// 2 Wholetone
+// 3 dim
+// 12 pent
+// 12 maj
+// 12 mmin
+slider43:0<0,41,1{Chromatic,Cwhole,C#whole,Chwdim,C#hwdim,Dhwdim,Cpent,C#pent,Dpent,D#pent,Epent,Fpent,F#pent,Gpent,G#pent,Apent,A#pent,Bpent,Cmaj,C#maj,Dmaj,D#maj,Emaj,Fmaj,F#maj,Gmaj,G#maj,Amaj,A#maj,Bmaj,Cmmin,C#mmin,Dmmin,D#mmin,Emmin,Fmmin,F#mmin,Gmmin,G#mmin,Ammin,A#mmin,Bmmin}>AlwaysScale
+slider44:0<0,41,1{Chromatic,Cwhole,C#whole,Chwdim,C#hwdim,Dhwdim,Cpent,C#pent,Dpent,D#pent,Epent,Fpent,F#pent,Gpent,G#pent,Apent,A#pent,Bpent,Cmaj,C#maj,Dmaj,D#maj,Emaj,Fmaj,F#maj,Gmaj,G#maj,Amaj,A#maj,Bmaj,Cmmin,C#mmin,Dmmin,D#mmin,Emmin,Fmmin,F#mmin,Gmmin,G#mmin,Ammin,A#mmin,Bmmin}>Rot1Scale
+slider45:0<0,41,1{Chromatic,Cwhole,C#whole,Chwdim,C#hwdim,Dhwdim,Cpent,C#pent,Dpent,D#pent,Epent,Fpent,F#pent,Gpent,G#pent,Apent,A#pent,Bpent,Cmaj,C#maj,Dmaj,D#maj,Emaj,Fmaj,F#maj,Gmaj,G#maj,Amaj,A#maj,Bmaj,Cmmin,C#mmin,Dmmin,D#mmin,Emmin,Fmmin,F#mmin,Gmmin,G#mmin,Ammin,A#mmin,Bmmin}>Rot2Scale
+slider46:0<0,41,1{Chromatic,Cwhole,C#whole,Chwdim,C#hwdim,Dhwdim,Cpent,C#pent,Dpent,D#pent,Epent,Fpent,F#pent,Gpent,G#pent,Apent,A#pent,Bpent,Cmaj,C#maj,Dmaj,D#maj,Emaj,Fmaj,F#maj,Gmaj,G#maj,Amaj,A#maj,Bmaj,Cmmin,C#mmin,Dmmin,D#mmin,Emmin,Fmmin,F#mmin,Gmmin,G#mmin,Ammin,A#mmin,Bmmin}>Rot3Scale
+
+// What to do when you play a note that's not in the key? Case: Playing G# in Gmajor, and harmonizing interval -2.
+// Stay = allow the played note to play, and continue harmonizing diatonically. skip the nearest note (let's 
+//        assume this is a sort of alteration to it), so we assume you're playing an altered G. Skip F#, and return E.
+// ShiftUp = shift the transposition map up. We assume you're altering G, up by 1 semitone. So shift the map up
+//        so we're in G# major. Now we return the 6th scale degree, the E# (ugh bad example maybe?).
+slider47:0<0,1,1{StayDiatonic,ShiftUp}>Non-diatonic harmonizer behavior
+
+// TODO: constrain rotation
+// OnlyUnison = only allow rotation when you play thes same note twice
+// NeverSemitone = when playing gracenotes, don't rotate. to create parallel chords.
+// Play1, 2, 3, etc = only rotate every N note-ons.
+//slider50:0<0,4,1{OnlyUnison,NeverSemitone,Play1,Play2,Play3}>RotationConstraints
+
+// TODO: Turn on / off with MIDI note?
+
+// TODO: make more settings per-zone or per-voice. For exmaple maybe you want a bassline to rotate less often than others
+
+// TODO: retrig always or avoid if unison. currently we always avoid if unison. to retrig i would have to add another note-off buffer that occurs BEFORE note-ons.
+
+in_pin:none
+out_pin:none
+
+//---------------------------------------------------------------------------------
+@init
+
+// set up buffer positions. These used to hold the various transpositions (-1, 0, 7, etc).
+// that was fine for chromatic intervals, but for diatonic,
+// now these point to another buffer which has a transposition mapping played_note -> transposed_note.
+alwaysTransp = 0;
+rotate1Transp = 1000;
+rotate2Transp = 2000;
+rotate3Transp = 3000;
+
+// contains all the transposition maps. Indexing into this is (voice << 7 | noteval)
+// let's overkill with 64 voices and 128 notes that's still less than 10k entries.
+noteMaps = 10000;
+
+// track all playing notes. TODO: support polyphony.
+// but i don't think this effect is very interesting for polyphany anyway,
+// and it adds complexity. When we encounter a note off, just release all notes we played.
+playingNotes = 20000; // buffer position
+playingChannels = 30000;
+playingNoteCount = 0;
+
+// used in scale generation temp var, holds all midi note values in a selected scale.
+scaleTemp = 40000;
+scaleTempCount = 0; // # of entries there.
+// populate scaleTemp buffer with all MIDI note values considered diatonic to the scale.
+function GenerateScale(scale) local(i, note, root)
+(
+  // TODO: blues? harm min? others?
+  (scale <= 0) ? (
+    // chromatic.
+    i = 0;
+    loop (128,
+      scaleTemp[i] = i;
+      i += 1;
+    );
+    scaleTempCount = 128;
+  ) : (scale <= 2) ? (
+    // whole-tone
+    root = scale - 1;
+    i = 0;
+    loop (64,
+      scaleTemp[i] = (i * 2) + root;
+      i += 1;
+    );
+    scaleTempCount = 64;
+  ) : (scale <= 5) ? (
+    // half-whole diminished
+    root = scale - 3 /* slider val offset */;
+    i = 0;
+    note = 0; // roots
+    while(note < 128)(
+      scaleTemp[i+0] = note + root;
+      scaleTemp[i+1] = note + 1 + root;
+      scaleTemp[i+2] = note + 3 + root;
+      i += 3;// # of notes in scale
+      note += 4;// span of scale
+    );
+    scaleTempCount = i;
+  ) : (scale <= 17) ? (
+    // pentatonic
+    root = scale - 6 /* slider val offset */;
+    i = 0;
+    note = 0; // roots
+    while(note < 128)(
+      scaleTemp[i+0] = note + root;
+      scaleTemp[i+1] = note + root + 2;
+      scaleTemp[i+2] = note + root + 4;
+      scaleTemp[i+3] = note + root + 7;
+      scaleTemp[i+4] = note + root + 9;
+      i += 5;// # of notes in scale
+      note += 12;// span of scale
+    );
+    scaleTempCount = i;
+  ) : (scale <= 29) ? (
+    // major
+    root = scale - 18 /* slider val offset */;
+    i = 0;
+    note = 0; // roots
+    while(note < 128)(
+      scaleTemp[i+0] = note + root;
+      scaleTemp[i+1] = note + root + 2;
+      scaleTemp[i+2] = note + root + 4;
+      scaleTemp[i+3] = note + root + 5;
+      scaleTemp[i+4] = note + root + 7;
+      scaleTemp[i+5] = note + root + 9;
+      scaleTemp[i+6] = note + root + 11;
+      i += 7;// # of notes in scale
+      note += 12;// span of scale
+    );
+    scaleTempCount = i;
+  ) : (scale <= 41) ? (
+    // melodic minor
+    root = scale - 30 /* slider val offset */;
+    i = 0;
+    note = 0; // roots
+    while(note < 128)(
+      scaleTemp[i+0] = note + root;
+      scaleTemp[i+1] = note + root + 2;
+      scaleTemp[i+2] = note + root + 3;
+      scaleTemp[i+3] = note + root + 5;
+      scaleTemp[i+4] = note + root + 7;
+      scaleTemp[i+5] = note + root + 9;
+      scaleTemp[i+6] = note + root + 11;
+      i += 7;// # of notes in scale
+      note += 12;// span of scale
+    );
+    scaleTempCount = i;
+  ) : (
+    // (default) chromatic.
+    i = 0;
+    loop (128,
+      scaleTemp[i] = i;
+      i += 1;
+    );
+    scaleTempCount = 128;
+  );
+);
+
+usedChannels = 50000; // array of 16 values 0 or 1 indicating whether the channel is used at all. For duplicating midi CC info.
+
+function clamp(x, a, b)
+(
+  x = (x < a) ? a : x;
+  (x > b) ? b : x;
+);
+
+// holds notes & channels that are to be note-off'd next block.
+NoteOffQueue_Notes = 60000;
+NoteOffQueue_Channels = 70000;
+NoteOffQueue_Size = 0;
+
+//---------------------------------------------------------------------------------
+@slider
+
+AlwaysVoiceCount = 0;
+
+Rotate1VoiceCount = 0;
+Rotate1Cursor = 0;
+Rotate2VoiceCount = 0;
+Rotate2Cursor = 0;
+Rotate3VoiceCount = 0;
+Rotate3Cursor = 0;
+
+LastRotationTime = time_precise();
+
+NonDiatonicShift = slider47;
+
+// the note we track for note-offs.
+// if you hold more than 1 note, then release an old note, we want to keep playing.
+FocusedNote = 0;
+
+TT_iterations = 0; // debugging
+  
+// looks in scaleTemp for the note closest to the requested note,
+// transpose. This is called for each note (ascending) for each voice, so actually it's
+// a lot of processing.
+// This optimized iterator is a way of not having to start at 0 every time. Since the incoming
+// note argument is always ascending per-voice, just store the last used iterator and reuse next call.
+// saves a *LOT* of iteration.
+CTN_optimizedIterator = 0;
+function CalculateTransposedNote(note, transp) local (alteration i ret)
+(
+  (transp == 0) ? (
+    // there is no condition where 0 transposition would result in anything else.
+    // this allows us to very simply preserve nondiatonic notes
+    (note);
+  ) : (
+    alteration = 0; // for non-diatonic calculation.
+    i = max(1, -transp); // if you're transposing -2, then start search at 2. also, don't search 0 because we're searching for the first note PAST the requested.
+    i = max(CTN_optimizedIterator, i);
+    ret = 0;
+  
+    while (i < scaleTempCount && ret == 0) (// if ret != it's because we found a note. yea i wish jsfx had "break"/"continue" keywords
+      TT_iterations += 1;
+      (scaleTemp[i] >= note) ? (
+        // we found the first note which we have hit or passed.
+        CTN_optimizedIterator = i;
+        (scaleTemp[i] == note) ? (
+          // diatonic. we're playing i.
+          playingIndex = i;
+          alteration = 0;
+        ) : (
+          // non-diatonic. assume shifted up
+          playingIndex = i - 1;
+          alteration = note - scaleTemp[playingIndex];
+        );
+        (transp > 0 && alteration != 0) ? (
+          // positive transposition. if there's an alteration, we assume we're playing the NEXT scale degree.
+          // if there's no alteration, we're playing THIS scale degree.
+          (i += 1);
+        );
+        (playingIndex + transp < scaleTempCount) ? ( // bounds check
+          ret = scaleTemp[playingIndex + transp];
+          ret += alteration * NonDiatonicShift;
+        );
+      );
+      i += 1;
+    );
+  
+    (ret);
+  )
+);
+
+function ProcessVoiceOption(voiceIndex, transp, mode) local(transpMap, Scale, i, outp, voiceEnabled)
+(
+  transpMap = noteMaps + (voiceIndex << 7);
+  voiceEnabled = 0;
+  (mode == 1) ? (
+    // "always" mode
+    alwaysTransp[AlwaysVoiceCount] = transpMap;
+    AlwaysVoiceCount = AlwaysVoiceCount + 1;
+    Scale = slider43;
+    voiceEnabled = 1;
+  ) : (mode == 2) ? (
+    // "rotate, group 1"
+    rotate1Transp[Rotate1VoiceCount] = transpMap;
+    Rotate1VoiceCount = Rotate1VoiceCount + 1;
+    Scale = slider44;
+    voiceEnabled = 1;
+  ): (mode == 3) ? (
+    // "rotate, group 2"
+    rotate2Transp[Rotate2VoiceCount] = transpMap;
+    Rotate2VoiceCount = Rotate2VoiceCount + 1;
+    Scale = slider45;
+    voiceEnabled = 1;
+  ): (mode == 4) ? (
+    // "rotate, group 3"
+    rotate3Transp[Rotate3VoiceCount] = transpMap;
+    Rotate3VoiceCount = Rotate3VoiceCount + 1;
+    Scale = slider46;
+    voiceEnabled = 1;
+  );
+
+  (voiceEnabled == 1) ? (
+    // Each voice has a transposition table.
+    // Each group has a mapping into transposition tables.
+    // Generate the transposition tables.
+    // each voice has a map of 128 entries. the index into the map (the key) is the incoming midi note,
+    // and the resulting value from the map is the note to actually play.
+    
+    GenerateScale(Scale);
+
+    i = 1;
+    CTN_optimizedIterator = 0;
+    loop(126,
+      // find the closest match in the scale to the requested note, transpose back from it.
+      outp = CalculateTransposedNote(i, transp);
+      outp = (outp < 1 || outp > 127) ? 0 : outp;// out of range gets set to 0; won't play.
+      transpMap[i] = outp;
+      i += 1;
+    );
+  );
+);
+
+ProcessVoiceOption(0, slider1, slider2);
+ProcessVoiceOption(1, slider3, slider4);
+ProcessVoiceOption(2, slider5, slider6);
+ProcessVoiceOption(3, slider7, slider8);
+ProcessVoiceOption(4, slider9, slider10);
+ProcessVoiceOption(5, slider11, slider12);
+ProcessVoiceOption(6, slider13, slider14);
+ProcessVoiceOption(7, slider15, slider16);
+ProcessVoiceOption(8, slider17, slider18);
+ProcessVoiceOption(9, slider19, slider20);
+ProcessVoiceOption(10, slider21, slider22);
+ProcessVoiceOption(11, slider23, slider24);
+ProcessVoiceOption(12, slider25, slider26);
+ProcessVoiceOption(13, slider27, slider28);
+
+MinRotationTimeSec = slider29 / 1000;
+
+Rot1Channel = slider30;
+Rot1Velscale = slider31;
+Rot1Maxnote = slider32;
+Rot1Minnote = slider33;
+
+Rot2Channel = slider34;
+Rot2Velscale = slider35;
+Rot2Maxnote = slider36;
+Rote2Minnate = slider37;
+
+Rot3Channel = slider38;
+Rot3Velscale = slider39;
+Rot3Maxnote = slider40;
+Rot3Minnote = slider41;
+
+AlwaysChannel = slider42;
+
+i = 0;
+loop(16,
+  usedChannels[i] = 0;
+  i += 1;
+);
+usedChannels[Rot1Channel] = 1;
+usedChannels[Rot2Channel] = 1;
+usedChannels[Rot3Channel] = 1;
+usedChannels[AlwaysChannel] = 1;
+
+// latest midi event offset; used to send note-offs after all note-ons.
+latestOffset = 0;
+
+//---------------------------------------------------------------------------------
+@block
+
+function NoteOffQueue_Add(note, chan)
+(
+  // note: this could result in dupes. so the "remove" routine must traverse the whole buffer.
+  NoteOffQueue_Notes[NoteOffQueue_Size] = note;
+  NoteOffQueue_Channels[NoteOffQueue_Size] = chan;
+  NoteOffQueue_Size += 1;
+);
+
+function NoteOffQueue_Remove(note, chan) local(i)
+(
+  i = 0;
+  while(i < NoteOffQueue_Size) (
+    (NoteOffQueue_Notes[i] == note && NoteOffQueue_Channels[i] == chan) ? (
+      NoteOffQueue_Notes[i] = 0; // mark as erased.
+    );
+    i += 1;
+  );
+);
+
+function NoteOffQueue_Flush(latestOffset) local(i)
+(
+  i = 0;
+  while(i < NoteOffQueue_Size) (
+    (NoteOffQueue_Notes[i] != 0) ? (
+      midisend(latestOffset, (8*16) | NoteOffQueue_Channels[i], NoteOffQueue_Notes[i]);
+    );
+    i += 1;
+  );
+  NoteOffQueue_Size = 0;
+);
+
+function QueueAllNotesOff() local(i)
+(
+  i = playingNoteCount - 1;
+  loop(playingNoteCount, (
+    outpNote = playingNotes[i];
+    outpChannel = playingChannels[i];
+    NoteOffQueue_Add(outpNote, outpChannel);
+    i = i - 1;
+  ));
+);
+
+function PlayNote(offset, outpNote, velocity, outpChannel)
+(
+  // todo: don't retrigger?
+  // todo: DONT send pending note-off to this note
+  (outpNote > 0 && outpNote < 128) ? (
+    (outpChannel >= 0 && outpChannel <= 15) ? (
+      NoteOffQueue_Remove(outpNote, outpChannel);
+      velocity = clamp(velocity, 0, 127);
+      midisend(offset, (9*16) | outpChannel, outpNote, velocity); // send note on
+      playingNotes[playingNoteCount] = outpNote;
+      playingChannels[playingNoteCount] = outpChannel;
+      playingNoteCount = playingNoteCount + 1;
+    ) : (nop);
+  ) : (nop);
+);
+
+function GetTransposedNote(note, transpMap, maxnote, minnote) local(outpNote)
+(
+  outpNote = transpMap[note];
+  while (outpNote > maxnote) (
+    outpNote -= 12;
+  );
+  while (outpNote < minnote) (
+    outpNote += 12;
+  );
+  outpNote;// return
+);
+
+//-- MAIN ---------------------------------------------------------------------------------
+// flush pending note offs
+// OK the way note-offs work.
+// when you play a note, we want to kill all other notes. but not right away, just on the next block.
+// this way we play nicely with portamento on monophonics
+
+// important to flush note-off events before doing anything
+//NoteOffQueue_Flush();
+
+// so how note offs work:
+// within a block, each midi note on event,
+//  - queue existing playing notes for note-off,
+//  - if a newly playing note is queued for note-off, remove it. let it not retrigger.
+// perform all note-offs later than everything else.
+
+latestOffset = 0;
+
+while (midirecv(offset, data1, note, velocity) ? 
+(
+  msg = (data1 & 240) / 16;
+  latestOffset = max(offset, latestOffset);
+
+  (msg !== 8 /*note off*/ && msg !== 9 /*note on*/) ?
+  (
+    // unhandled midi msg; pass through.
+    // but because we're splitting to many channels, we need to make sure we double certain CC
+    ich = 0;
+    loop (16,
+      usedChannels[ich] == 1 ? (
+        midisend(offset, data1 & 240 | ich, note, velocity);
+      );
+      ich += 1;
+    );
+  ):
+  (
+    (msg == 9 /*note on*/ && velocity >= 0) ? 
+    (
+      FocusedNote = note;
+      
+      // kill notes; make way for new note.
+      QueueAllNotesOff();
+      // now we can act like no notes are playing as we figure out what to play.
+      playingNoteCount = 0;
+      
+      // in order to GUARANTEE that note-offs always come after note-ons, we have to subtract 1 from the offset.
+      // this gives room at the end of the block.
+      offset = max(0, offset - 1);
+      
+      // note on: ALWAYS mode
+      i = 0;
+      loop(AlwaysVoiceCount, (
+        outpNote = GetTransposedNote(note, alwaysTransp[i], 128, 0);
+        PlayNote(offset, outpNote, velocity, AlwaysChannel);
+        i = i + 1;
+      ));
+      
+      TimeElapsed = time_precise() - LastRotationTime;
+      RotationAdvance = (TimeElapsed > MinRotationTimeSec) ? (
+        LastRotationTime = time_precise();
+        1;
+      ) : (0);
+      
+      // note on: ROTATE1 mode
+      Rotate1VoiceCount > 0 ? (
+        outpNote = GetTransposedNote(note, rotate1Transp[Rotate1Cursor], Rot1Maxnote, Rot1Minnote);
+        PlayNote(offset, outpNote, velocity * Rot1Velscale, Rot1Channel);
+        Rotate1Cursor = Rotate1Cursor + RotationAdvance;
+        Rotate1Cursor = Rotate1Cursor % Rotate1VoiceCount;
+      );
+      
+      // note on: ROTATE2 mode
+      Rotate2VoiceCount > 0 ? (
+        outpNote = GetTransposedNote(note, rotate2Transp[Rotate2Cursor], Rot2Maxnote, Rot2Minnote);
+        PlayNote(offset, outpNote, velocity * Rot2Velscale, Rot2Channel);
+        Rotate2Cursor = Rotate2Cursor + RotationAdvance;
+        Rotate2Cursor = Rotate2Cursor % Rotate2VoiceCount;
+      );
+      
+      // note on: ROTATE3 mode
+      Rotate3VoiceCount > 0 ? (
+        outpNote = GetTransposedNote(note, rotate3Transp[Rotate3Cursor], Rot3Maxnote, Rot3Minnote);
+        PlayNote(offset, outpNote, velocity * Rot3Velscale, Rot3Channel);
+        Rotate3Cursor = Rotate3Cursor + RotationAdvance;
+        Rotate3Cursor = Rotate3Cursor % Rotate3VoiceCount;
+      );
+      
+    ) : ((msg == 8 || msg == 9) && note == FocusedNote) ? (
+      // main note off event
+      QueueAllNotesOff();
+      playingNoteCount = 0;
+    );
+  );
+); // midirecv
+); // while
+
+NoteOffQueue_Flush(min(latestOffset + 1, samplesblock - 1));
+
+@sample
+
+
