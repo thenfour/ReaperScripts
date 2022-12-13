@@ -1,0 +1,373 @@
+desc:Tenfour-Bitcrush
+//tags: effect
+//author: tenfour
+
+
+slider1:8999<100,22050, 1>Sampleratecrush Frequency
+
+slider10:4<1,16>Bitcrush Bits
+slider11:0<0,1,1{Slightly noisier,Slightly cleaner (with 0-crossing)}>Bitcrush mode
+slider12:.5<0,1>Bitcrush dither amount
+
+slider20:.5<0,1>Mix (Dry-Wet-Difference)
+
+in_pin:left input
+in_pin:right input
+out_pin:left output
+out_pin:right output
+
+@init
+pi = 3.141592653;
+pi2 = 6.28318530718;
+
+hold0L = 0;// currently held sample
+hold0R = 0;// currently held sample
+rms = 0;
+
+memMax = ceil(srate/60)*2; // 60 hz, 2-cycles
+memoryL = 0; // array.
+memoryR = memMax; // array.
+memCursor = 0;
+
+itm1L=otm1L=0; // dc filter
+itm1R=otm1R=0; // dc filter
+
+function Clamp(x, l, h)
+(
+  min(h, max(l, x))
+);
+function lerp(v0, v1, t)
+(
+  (1 - t) * v0 + t * v1;
+);
+function fract(a)
+(
+  a - floor(a);
+);
+
+function poly_blep(t, dt) // t is distance from transition center, positive.
+(
+  // 0 <= t < 1
+  t < dt ? (
+    t /= dt; // scale t from 0-1 within single sample
+    // 2 * (t - t^2/2 - 0.5)
+    t+t - t*t - 1;
+  ) :
+
+  // -1 < t < 0
+  t > 1 - dt ? (
+    t = (t - 1) / dt;
+    // 2 * (t^2/2 + t + 0.5)
+    t*t + t+t + 1;
+  );
+
+  // 0 otherwise
+);
+
+function butterworth_init(order, freq, reso) instance(n_lp, cx_lp, cutoff_lp, res_lp, k, c1, c2, c3, a0_lp, a1_lp, a2_lp, b1_lp, b2_lp)
+(
+  //  this.
+  n_lp = order;
+  cx_lp = freq;
+  cutoff_lp = 2*cx_lp/srate;
+  res_lp = 10^(0.05*(-reso/n_lp+1.5));
+  
+  k = 0.5*res_lp*sin($pi*cutoff_lp);
+  c1 = 0.5*(1-k)/(1+k);
+  c2 = (0.5+c1)*cos($pi*cutoff_lp);
+  c3 = (0.5+c1-c2)*0.25;
+  
+  a0_lp = 2*c3;
+  a1_lp = 4*c3;
+  a2_lp = 2*c3;
+  b1_lp = -2*c2;
+  b2_lp = 2*c1;
+
+);
+
+function butterworth_process(out_hp_l, out_hp_r) instance(n_lp, cx_lp, cutoff_lp, res_lp, k, c1, c2, c3, a0_lp, a1_lp, a2_lp, b1_lp, b2_lp)
+(
+n_lp > 0 ? (
+this.out_lp_l_1 = a0_lp*out_hp_l+a1_lp*this.mem_lp_l_11+a2_lp*this.mem_lp_l_12-b1_lp*this.mem_lp_l_13-b2_lp*this.mem_lp_l_14;
+this.mem_lp_l_12 = this.mem_lp_l_11;
+this.mem_lp_l_11 = this.out_hp_l;
+this.mem_lp_l_14 = this.mem_lp_l_13;
+this.mem_lp_l_13 = this.out_lp_l_1;
+this.out_lp_l = this.out_lp_l_1;
+this.out_lp_r_1 = a0_lp*out_hp_r+a1_lp*this.mem_lp_r_11+a2_lp*this.mem_lp_r_12-b1_lp*this.mem_lp_r_13-b2_lp*this.mem_lp_r_14;
+this.mem_lp_r_12 = this.mem_lp_r_11;
+this.mem_lp_r_11 = this.out_hp_r;
+this.mem_lp_r_14 = this.mem_lp_r_13;
+this.mem_lp_r_13 = this.out_lp_r_1;
+this.out_lp_r = this.out_lp_r_1;
+n_lp > 1 ? (
+this.out_lp_l_2 = a0_lp*this.out_lp_l_1+a1_lp*this.mem_lp_l_21+a2_lp*this.mem_lp_l_22-b1_lp*this.mem_lp_l_23-b2_lp*this.mem_lp_l_24;
+this.mem_lp_l_22 = this.mem_lp_l_21;
+this.mem_lp_l_21 = this.out_lp_l_1;
+this.mem_lp_l_24 = this.mem_lp_l_23;
+this.mem_lp_l_23 = this.out_lp_l_2;
+this.out_lp_l = this.out_lp_l_2;
+this.out_lp_r_2 = a0_lp*this.out_lp_r_1+a1_lp*this.mem_lp_r_21+a2_lp*this.mem_lp_r_22-b1_lp*this.mem_lp_r_23-b2_lp*this.mem_lp_r_24;
+this.mem_lp_r_22 = this.mem_lp_r_21;
+this.mem_lp_r_21 = this.out_lp_r_1;
+this.mem_lp_r_24 = this.mem_lp_r_23;
+this.mem_lp_r_23 = this.out_lp_r_2;
+this.out_lp_r = this.out_lp_r_2;
+);
+n_lp > 2 ? (
+this.out_lp_l_3 = a0_lp*this.out_lp_l_2+a1_lp*this.mem_lp_l_31+a2_lp*this.mem_lp_l_32-b1_lp*this.mem_lp_l_33-b2_lp*this.mem_lp_l_34;
+this.mem_lp_l_32 = this.mem_lp_l_31;
+this.mem_lp_l_31 = this.out_lp_l_2;
+this.mem_lp_l_34 = this.mem_lp_l_33;
+this.mem_lp_l_33 = this.out_lp_l_3;
+this.out_lp_l = this.out_lp_l_3;
+this.out_lp_r_3 = a0_lp*this.out_lp_r_2+a1_lp*this.mem_lp_r_31+a2_lp*this.mem_lp_r_32-b1_lp*this.mem_lp_r_33-b2_lp*this.mem_lp_r_34;
+this.mem_lp_r_32 = this.mem_lp_r_31;
+this.mem_lp_r_31 = this.out_lp_r_2;
+this.mem_lp_r_34 = this.mem_lp_r_33;
+this.mem_lp_r_33 = this.out_lp_r_3;
+this.out_lp_r = this.out_lp_r_3;
+);
+n_lp > 3 ? (
+this.out_lp_l_4 = a0_lp*this.out_lp_l_3+a1_lp*this.mem_lp_l_41+a2_lp*this.mem_lp_l_42-b1_lp*this.mem_lp_l_43-b2_lp*this.mem_lp_l_44;
+this.mem_lp_l_42 = this.mem_lp_l_41;
+this.mem_lp_l_41 = this.out_lp_l_3;
+this.mem_lp_l_44 = this.mem_lp_l_43;
+this.mem_lp_l_43 = this.out_lp_l_4;
+this.out_lp_l = this.out_lp_l_4;
+this.out_lp_r_4 = a0_lp*this.out_lp_r_3+a1_lp*this.mem_lp_r_41+a2_lp*this.mem_lp_r_42-b1_lp*this.mem_lp_r_43-b2_lp*this.mem_lp_r_44;
+this.mem_lp_r_42 = this.mem_lp_r_41;
+this.mem_lp_r_41 = this.out_lp_r_3;
+this.mem_lp_r_44 = this.mem_lp_r_43;
+this.mem_lp_r_43 = this.out_lp_r_4;
+this.out_lp_r = this.out_lp_r_4;
+);
+n_lp > 4 ? (
+this.out_lp_l_5 = a0_lp*this.out_lp_l_4+a1_lp*this.mem_lp_l_51+a2_lp*this.mem_lp_l_52-b1_lp*this.mem_lp_l_53-b2_lp*this.mem_lp_l_54;
+this.mem_lp_l_52 = this.mem_lp_l_51;
+this.mem_lp_l_51 = this.out_lp_l_4;
+this.mem_lp_l_54 = this.mem_lp_l_53;
+this.mem_lp_l_53 = this.out_lp_l_5;
+this.out_lp_l = this.out_lp_l_5;
+this.out_lp_r_5 = a0_lp*this.out_lp_r_4+a1_lp*this.mem_lp_r_51+a2_lp*this.mem_lp_r_52-b1_lp*this.mem_lp_r_53-b2_lp*this.mem_lp_r_54;
+this.mem_lp_r_52 = this.mem_lp_r_51;
+this.mem_lp_r_51 = this.out_lp_r_4;
+this.mem_lp_r_54 = this.mem_lp_r_53;
+this.mem_lp_r_53 = this.out_lp_r_5;
+this.out_lp_r = this.out_lp_r_5;
+);
+n_lp > 5 ? (
+this.out_lp_l_6 = a0_lp*this.out_lp_l_5+a1_lp*this.mem_lp_l_61+a2_lp*this.mem_lp_l_62-b1_lp*this.mem_lp_l_63-b2_lp*this.mem_lp_l_64;
+this.mem_lp_l_62 = this.mem_lp_l_61;
+this.mem_lp_l_61 = this.out_lp_l_5;
+this.mem_lp_l_64 = this.mem_lp_l_63;
+this.mem_lp_l_63 = this.out_lp_l_6;
+this.out_lp_l = this.out_lp_l_6;
+this.out_lp_r_6 = a0_lp*this.out_lp_r_5+a1_lp*this.mem_lp_r_61+a2_lp*this.mem_lp_r_62-b1_lp*this.mem_lp_r_63-b2_lp*this.mem_lp_r_64;
+this.mem_lp_r_62 = this.mem_lp_r_61;
+this.mem_lp_r_61 = this.out_lp_r_5;
+this.mem_lp_r_64 = this.mem_lp_r_63;
+this.mem_lp_r_63 = this.out_lp_r_6;
+this.out_lp_r = this.out_lp_r_6;
+);
+);
+);
+
+@slider
+
+bitcrushMode = slider11;
+ditherAmt = slider12;
+
+slid3 = 3;
+doAAFilter = slid3 & 2 ? 1 : 0;
+doBlep= (slid3 & 1) * .5;
+
+wetDryMix = slider20;
+bitCrushBits = slider10;
+
+blepAmt = 1;
+sampleCrushFrequency = slider1;
+dt = slider1 / srate;
+// how many downsampled samples to delay? there's probably fudge in here but the 0.5 aligns
+// to SH sample center which yields the best null. delaying slightly around that might actually help
+// due to delayed reactions because of resample factor
+delayCycles = 1.5;//slider4;
+memDelaySamples = floor(srate/(slider1/delayCycles));
+samplesPerCycle = srate/slider1;
+interpolationAmt = slider4;
+
+ditherShape = slider10;
+ditherHZ = lerp(1000, 18000, ditherShape);
+ditherDT = ditherHZ / srate;
+
+aaFilter.butterworth_init(3, sampleCrushFrequency, 0);
+
+@block
+
+levels = pow(2,bitCrushBits); // need to use pow() to get continuous (modulatable) behavior
+ditherAmp = (1/(levels+1)) * ditherAmt * 1.5;
+bitcrushGainCompensation = 1-(1/(levels * 0.65));
+
+@sample
+
+prevT = t;
+t = (t + dt);
+sL = spl0;
+sR = spl1;
+
+// M-S ENCODE
+// why MS and not raw stereo? In stereo (dual mono), the stereo image is unaltered,
+// but in MS the stereo image gets distorted in a musical way. information is reduced in a way
+// that feels consistent with other crush fx.
+tempL = sL;
+sL = (sL+sR) * 0.5;
+sR = (tempL-sR) * 0.5;
+
+// BITCRUSH
+(bitCrushBits < 16) ? (
+
+  (ditherType > 0) ? ( // if (ditherType != OFF)
+ 
+    // 4-bit noise
+    r = rand(256);
+    ditherValL = (((r & 0xf0) >> 4) / 16) * 2 - 1;
+    ditherValR = (((r & 0xf)) / 16) * 2 - 1;
+
+    sL += Clamp(ditherValL * ditherAmp, -1, 1);
+    sR += Clamp(ditherValR * ditherAmp, -1, 1);
+  );
+  
+  // bitcrush
+  (bitcrushMode == 0) ? ( // "pure" mode, where we don't attempt to include zero.
+    sL += 1; // 0-2 range
+    sL /= 2; // 0-1 range
+    sL = floor(sL*levels);
+    sL /= levels - 1;
+    sL = max(0,min(sL,1));
+    sL *= 2;
+    sL -= 1;
+    
+    sR += 1; // 0-2 range
+    sR /= 2; // 0-1 range
+    sR = floor(sR*levels);
+    sR /= levels - 1;
+    sR = max(0,min(sR,1));
+    sR *= 2;
+    sR -= 1;
+  ):( // "safe" mode where a 0 is guaranteed
+    sL /= 2; // 0-1 range
+    sL= floor(sL*levels);
+    sL /= levels - 1;
+    sL = max(-1,min(sL,1));
+    sL *= 2;
+    
+    sR /= 2; // 0-1 range
+    sR= floor(sR*levels);
+    sR /= levels - 1;
+    sR = max(-1,min(sR,1));
+    sR *= 2;
+  );
+
+  // gain compensate
+  sL *= bitcrushGainCompensation;
+  sR *= bitcrushGainCompensation;
+  
+);
+
+//AAFilterOutputL = sL;
+//AAFilterOutputR = sR;
+
+aaFilter.butterworth_process(sL, sR);
+
+  AAFilterOutputL = aaFilter.out_lp_l;
+  AAFilterOutputR = aaFilter.out_lp_r;
+
+(t > 1) ? (
+  t -= 1;
+  // crossed boundary
+  //          0                  1                 2  
+  // cycle    |------------------|-----------------|--
+  // actual:  H0--------------s-------s------------?-- (s=sample process)
+  // in this moment:                  ^           
+  //                                  H0(live) = lerp(s-1,s0,t)
+  blepScaleL = hold1L -hold0L;
+  blepScaleR = hold1R -hold0R;
+
+  hold0L = hold1L;
+  hold0R = hold1R;
+
+  hold1L = sL;// doInterpolation ? optimal2_23z(sampleN1, s, 1-t) : s; // sample @ cycle boundary
+  hold1R = sR;// doInterpolation ? optimal2_23z(sampleN1, s, 1-t) : s; // sample @ cycle boundary
+);
+
+
+// half-way through each cycle, advance the blep boundaries
+blepSwitchPos = .5;
+(t >= blepSwitchPos && prevT < blepSwitchPos) ? (
+  blepScaleL = hold1L -hold0L;
+  blepScaleR = hold1R -hold0R;
+);
+
+sL = hold0L;
+sL += poly_blep(t, dt) * blepScaleL * doBlep;
+
+sR = hold0R;
+sR += poly_blep(t, dt) * blepScaleR * doBlep;
+
+
+// delay buffer holding dry signal; this is to allow correct wet-dry mixing.
+rms -= memoryL[memCursor] * memoryR[memCursor] ; // shift out old sample
+rms -= memoryR[memCursor] * memoryR[memCursor] ; // shift out old sample
+rms += spl0 * spl0; // shift in new.
+rms += spl1 * spl1; // shift in new.
+memoryL[memCursor] = spl0;
+memoryR[memCursor] = spl1;
+memCursorDelayed = memCursor - memDelaySamples - filterDelaySamples;
+memCursorDelayed < 0 ? memCursorDelayed += memMax;
+dryL = memoryL[memCursorDelayed];
+dryR = memoryR[memCursorDelayed];
+memCursor += 1;
+memCursor >= memMax ? (memCursor = 0);
+
+
+// gate
+trms = rms / memMax;
+trms = sqrt(trms);
+
+//slider20 > .5 ? (
+gateThresh = 0.001;
+trms < gateThresh ?(
+  sL = 0;
+  sR = 0;
+);
+//);
+
+// DC filter
+otm1L = 0.999 * otm1L + sL - itm1L;
+itm1L = sL;
+sL = otm1L;
+
+otm1R = 0.999 * otm1R + sR - itm1R;
+itm1R = sR;
+sR = otm1R;
+
+
+// M-S DECODE
+tmpL=sL;
+//  sR *= slider31;
+sL = sL + sR;
+sR = tmpL - sR;
+//);
+
+
+(wetDryMix < 0.5) ? (
+  sL = lerp(dryL, sL, wetDryMix * 2);
+  sR = lerp(dryR, sR, wetDryMix * 2);
+):(
+  sL = lerp(sL, sL-dryL, wetDryMix*2-1);// .5-1 = 1-2 -1 = 0-1
+  sR = lerp(sR, sR-dryR, wetDryMix*2-1);// .5-1 = 1-2 -1 = 0-1
+);
+
+spl0 = sL;
+spl1 = sR;
+
