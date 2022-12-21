@@ -10,6 +10,7 @@
 - With dithering & error-diffusion
 - Noise gate
 - All parameters fully modulateable
+- Level compensation during bitcrushing which also helps modulation
 - Midside processing and stereo control
 - Wet-dry-diff control, to emphasize the effect if desired.
 
@@ -67,20 +68,38 @@ Spreads quantization error values to subsequent 8 samples. For image processing 
 
 ## Bitcrush stereo mode ##
 
+Changes the way stereo channels are processed during bitcrushing.
+
 ### Stereo ###
+
+Bitcrushes left and right stereo channels. The resulting stereo image is the same as the input stereo image.
 
 ### Safe ###
 
+Bitcrushes the stereo image itself (side channel), and similar to the "Safe" bitcrush mode, ensures a center value. So the resulting sound will be very "mono".
+
 ### Rough ###
+
+Bitcrushes the stereo image itself (side channel), but doesn't ensure that a center value exists. The resulting signal will have a more chaotic stereo image.
 
 ## Gate enabled? ##
 
+Enables or disables the gate. The gate silences the output signal when the input signal goes silent. There are a couple main reasons for the gate feature:
+
+1. Without a gate, dithering noise will output continuously. Enabling the gate will disable dither noise when the input signal goes silent.
+2. Without a gate, bitrate of 1 in "Rough" mode can't represent silence and will basically output full-scale noise. Enabling the gate will prevent this.
+
 ## Stereo width ##
+
+Controls the stereo width of the output signal. When low samplerates or bitrates are being used, having a wide stereo image can sound uncharateristic. This is a convenience control to bring the sound into character.
 
 ## Mix (dry-wet-diff) ##
 
+At 0, the original dry signal is output. NOTE: there is a very small delay in the signal so it will not "null" with the original signal. The delay is required in order to smoothly dry-wet mix with the delayed wet signal.
 
+At 0.5, you will hear the wet, bitcrushed & samplecrushed signal.
 
+At 1.0, you will hear the difference between the wet & dry signals. This allows you to emphasize the crush effect.
 
 
 
