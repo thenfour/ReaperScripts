@@ -9,6 +9,7 @@ desc:Tenfour-Bitcrush
 // - error-diffusion has been added
 // - frequency is now logarithmic
 // - fixed typo which broke gate sometimes
+// - added gate enabled / disabled; it's important.
 
 slider1:.7<0,1,0.001>Sampleratecrush Frequency
 
@@ -17,9 +18,10 @@ slider11:1<0,1,1{Safe,Rough}>Bitcrush mode
 slider12:.5<0,1>Bitcrush dither amount
 slider13:0<0,1,{Off,Error-Diffusion,Noise}>Bitcrush dither type
 slider14:1<0,1,{Stereo,Safe,Rough}>Bitcrush stereo mode
-slider15:.4<0,1,.1>Stereo width
 
-slider20:.5<0,1>Mix (Dry-Wet-Difference)
+slider20:1<0,1,1>Gate Enabled?
+slider21:.4<0,1,.1>Stereo width
+slider22:.5<0,1>Mix (Dry-Wet-Difference)
 
 in_pin:left input
 in_pin:right input
@@ -232,13 +234,15 @@ ditherAmt = slider12;
 
 gBitcrushDitherMode = slider13;
 gBitcrushStereoMode = slider14;
-gStereoWidth = slider15;
+
+gGateEnabled = slider20;
+gStereoWidth = slider21;
 
 slid3 = 3;
 doAAFilter = slid3 & 2 ? 1 : 0;
 doBlep= (slid3 & 1) * .5;
 
-wetDryMix = slider20;
+wetDryMix = slider22;
 bitCrushBits = slider10;
 
 blepAmt = 1;
@@ -286,13 +290,12 @@ sR = (tempL-sR) * 0.5;
   originalL = sL;
   originalR = sR;
 
+  // 4-bit noise
+  r = rand(256);
+  ditherValL = (((r & 0xf0) >> 4) / 16) * 2 - 1;
+  ditherValR = (((r & 0xf)) / 16) * 2 - 1;
+  
   (ditherAmp > 0) && (gBitcrushDitherMode == 2) ? ( // noise
- 
-    // 4-bit noise
-    r = rand(256);
-    ditherValL = (((r & 0xf0) >> 4) / 16) * 2 - 1;
-    ditherValR = (((r & 0xf)) / 16) * 2 - 1;
-
     sL += (ditherValL * ditherAmp);
     sR += (ditherValR * ditherAmp);
   ):(gBitcrushDitherMode == 1)?( // error-diffusion
@@ -314,6 +317,11 @@ sR = (tempL-sR) * 0.5;
       sL = QuantizeSafe(sL, levels);
       sR = QuantizeSafe(sR, levels);
     ):( // "safe" mode where a 0 is guaranteed
+      // when noise gate is disabled, silence needs to perturb
+      // the sound a bit in order to avoid fixed DC offset.
+      sL += (ditherValL * 0.001);
+      sR += (ditherValR * 0.001);
+
       sL = QuantizeChaotic(sL, levels);
       sR = QuantizeChaotic(sR, levels);
     );
@@ -330,14 +338,24 @@ sR = (tempL-sR) * 0.5;
     (bitcrushMode == 0) ? (
       sL = QuantizeSafe(sL, levels);
     ):( // "safe" mode where a 0 is guaranteed
+      // when noise gate is disabled, silence needs to perturb
+      // the sound a bit in order to avoid fixed DC offset.
+      sL += (ditherValL * 0.001);
+      sR += (ditherValR * 0.001);
       sL = QuantizeChaotic(sL, levels);
     );
   
   ):(gBitcrushStereoMode == 2) ? ( // chaos
+
     sR = QuantizeChaotic(sR, levels);
     (bitcrushMode == 0) ? (
       sL = QuantizeSafe(sL, levels);
     ):( // "safe" mode where a 0 is guaranteed
+      // when noise gate is disabled, silence needs to perturb
+      // the sound a bit in order to avoid fixed DC offset.
+      sL += (ditherValL * 0.001);
+      sR += (ditherValR * 0.001);
+  
       sL = QuantizeChaotic(sL, levels);
     );
 
@@ -346,6 +364,9 @@ sR = (tempL-sR) * 0.5;
   (gBitcrushDitherMode == 1) ? (
     errorL = originalL - sL;
     errorR = originalR - sR;
+    
+    // so in general error-diffusion sounds pretty terrible.
+    // more samples is better though in general.
     
     /* // floyd-steinberg
     RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 1, errorL * 7 / 16);
@@ -458,7 +479,8 @@ trms = sqrt(trms);
 
 //slider20 > .5 ? (
 gateThresh = 0.001;
-trms < gateThresh ?(
+gate=0;
+(trms < gateThresh) && gGateEnabled ?(
   sL = 0;
   sR = 0;
 );
