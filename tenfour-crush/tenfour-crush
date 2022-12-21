@@ -2,12 +2,22 @@ desc:Tenfour-Bitcrush
 //tags: effect
 //author: tenfour
 
+// 2022-12-21:
+// - small tweak to bitcrush mode algorithms to be more intuitive/predictable.
+// - added stereo processing mode and width
+// - DC filter is now after ms decode
+// - error-diffusion has been added
+// - frequency is now logarithmic
+// - fixed typo which broke gate sometimes
 
-slider1:8999<100,22050, 1>Sampleratecrush Frequency
+slider1:.7<0,1,0.001>Sampleratecrush Frequency
 
 slider10:4<1,16>Bitcrush Bits
-slider11:0<0,1,1{Slightly noisier,Slightly cleaner (with 0-crossing)}>Bitcrush mode
+slider11:1<0,1,1{Safe,Rough}>Bitcrush mode
 slider12:.5<0,1>Bitcrush dither amount
+slider13:0<0,1,{Off,Error-Diffusion,Noise}>Bitcrush dither type
+slider14:1<0,1,{Stereo,Safe,Rough}>Bitcrush stereo mode
+slider15:.4<0,1,.1>Stereo width
 
 slider20:.5<0,1>Mix (Dry-Wet-Difference)
 
@@ -28,6 +38,9 @@ memMax = ceil(srate/60)*2; // 60 hz, 2-cycles
 memoryL = 0; // array.
 memoryR = memMax; // array.
 memCursor = 0;
+errorDiffusionSamplesL = memMax * 2;
+errorDiffusionSamplesR = memMax * 3;
+errorDiffusionCursor = 0;
 
 itm1L=otm1L=0; // dc filter
 itm1R=otm1R=0; // dc filter
@@ -43,6 +56,35 @@ function lerp(v0, v1, t)
 function fract(a)
 (
   a - floor(a);
+);
+
+function RingBufferWrite(buffer, bufferSize, index, value)
+(
+  index = index % bufferSize;
+  buffer[index] = value;
+);
+
+// https://www.desmos.com/calculator/xg0o8hflwv
+// bring sL into 0-1 range
+function QuantizeSafe(sR, levels)
+(
+  sR = Clamp(sR, -.99, .99);
+  m = levels * .5; // double the poles, half the levels.
+  sR= floor(sR*m+.5);
+  sR /= m;
+  sR
+);
+
+function QuantizeChaotic(sR, levels)
+(
+  sR = Clamp(sR, -.99, .99);
+  sR = sR * .5 + .5;
+  o = .5 / levels; // an offset which helps find the correct window before quantization.
+  sR = floor((sR-o)*levels+.5);
+  sR /= levels;
+  sR += o;
+  sR = sR*2-1;
+  sR
 );
 
 function poly_blep(t, dt) // t is distance from transition center, positive.
@@ -173,10 +215,24 @@ this.out_lp_r = this.out_lp_r_6;
 );
 );
 
+// mimics NI Massive knobs.
+function ParamToFrequency(x)
+(
+  gCenterFreq = 2205; // the cutoff frequency at 0.5 param value.
+  x -= 0.5;  // signed distance from 0.5 -.2 (0.3 = -.2, 0.8 = .3)
+  x *= 10.0; // (.3 = -2, .8 = 3)
+  x = pow(2, x);
+  Clamp(gCenterFreq * x, 0, srate/2);
+);
+
 @slider
 
 bitcrushMode = slider11;
 ditherAmt = slider12;
+
+gBitcrushDitherMode = slider13;
+gBitcrushStereoMode = slider14;
+gStereoWidth = slider15;
 
 slid3 = 3;
 doAAFilter = slid3 & 2 ? 1 : 0;
@@ -186,14 +242,15 @@ wetDryMix = slider20;
 bitCrushBits = slider10;
 
 blepAmt = 1;
-sampleCrushFrequency = slider1;
-dt = slider1 / srate;
+sampleCrushFrequency = ParamToFrequency(slider1);
+
+dt = sampleCrushFrequency / srate;
 // how many downsampled samples to delay? there's probably fudge in here but the 0.5 aligns
 // to SH sample center which yields the best null. delaying slightly around that might actually help
 // due to delayed reactions because of resample factor
 delayCycles = 1.5;//slider4;
-memDelaySamples = floor(srate/(slider1/delayCycles));
-samplesPerCycle = srate/slider1;
+memDelaySamples = floor(srate/(sampleCrushFrequency/delayCycles));
+samplesPerCycle = srate/sampleCrushFrequency;
 interpolationAmt = slider4;
 
 ditherShape = slider10;
@@ -206,7 +263,7 @@ aaFilter.butterworth_init(3, sampleCrushFrequency, 0);
 
 levels = pow(2,bitCrushBits); // need to use pow() to get continuous (modulatable) behavior
 ditherAmp = (1/(levels+1)) * ditherAmt * 1.5;
-bitcrushGainCompensation = 1-(1/(levels * 0.65));
+bitcrushGainCompensation = 1-(1/(levels));
 
 @sample
 
@@ -226,56 +283,121 @@ sR = (tempL-sR) * 0.5;
 // BITCRUSH
 (bitCrushBits < 16) ? (
 
-  (ditherType > 0) ? ( // if (ditherType != OFF)
+  originalL = sL;
+  originalR = sR;
+
+  (ditherAmp > 0) && (gBitcrushDitherMode == 2) ? ( // noise
  
     // 4-bit noise
     r = rand(256);
     ditherValL = (((r & 0xf0) >> 4) / 16) * 2 - 1;
     ditherValR = (((r & 0xf)) / 16) * 2 - 1;
 
-    sL += Clamp(ditherValL * ditherAmp, -1, 1);
-    sR += Clamp(ditherValR * ditherAmp, -1, 1);
+    sL += (ditherValL * ditherAmp);
+    sR += (ditherValR * ditherAmp);
+  ):(gBitcrushDitherMode == 1)?( // error-diffusion
+    sL += errorDiffusionSamplesL[errorDiffusionCursor] * ditherAmp * 2;
+    sR += errorDiffusionSamplesR[errorDiffusionCursor] * ditherAmp * 2;
   );
   
-  // bitcrush
-  (bitcrushMode == 0) ? ( // "pure" mode, where we don't attempt to include zero.
-    sL += 1; // 0-2 range
-    sL /= 2; // 0-1 range
-    sL = floor(sL*levels);
-    sL /= levels - 1;
-    sL = max(0,min(sL,1));
-    sL *= 2;
-    sL -= 1;
+  // stereo mode.
+  // during MS decode, the quantization levels of the mid channel get perturbed,
+  // which is fine but when stereo is heavily quantized, it can cause glitchy sounding
+  (gBitcrushStereoMode == 0) ? ( // full stereo
+    // M-S DECODE
+    tmpL=sL;
+    sL = sL + sR;
+    sR = tmpL - sR;
     
-    sR += 1; // 0-2 range
-    sR /= 2; // 0-1 range
-    sR = floor(sR*levels);
-    sR /= levels - 1;
-    sR = max(0,min(sR,1));
-    sR *= 2;
-    sR -= 1;
-  ):( // "safe" mode where a 0 is guaranteed
-    sL /= 2; // 0-1 range
-    sL= floor(sL*levels);
-    sL /= levels - 1;
-    sL = max(-1,min(sL,1));
-    sL *= 2;
-    
-    sR /= 2; // 0-1 range
-    sR= floor(sR*levels);
-    sR /= levels - 1;
-    sR = max(-1,min(sR,1));
-    sR *= 2;
+    // bitcrush
+    (bitcrushMode == 0) ? (
+      sL = QuantizeSafe(sL, levels);
+      sR = QuantizeSafe(sR, levels);
+    ):( // "safe" mode where a 0 is guaranteed
+      sL = QuantizeChaotic(sL, levels);
+      sR = QuantizeChaotic(sR, levels);
+    );
+  
+    // MS ENCODE
+    tempL = sL;
+    sL = (sL+sR) * 0.5;
+    sR = (tempL-sR) * 0.5;
+  
+  ):(gBitcrushStereoMode == 1) ? ( // safe
+  
+    // quantize mid & side channel separately.
+    sR = QuantizeSafe(sR, levels);
+    (bitcrushMode == 0) ? (
+      sL = QuantizeSafe(sL, levels);
+    ):( // "safe" mode where a 0 is guaranteed
+      sL = QuantizeChaotic(sL, levels);
+    );
+  
+  ):(gBitcrushStereoMode == 2) ? ( // chaos
+    sR = QuantizeChaotic(sR, levels);
+    (bitcrushMode == 0) ? (
+      sL = QuantizeSafe(sL, levels);
+    ):( // "safe" mode where a 0 is guaranteed
+      sL = QuantizeChaotic(sL, levels);
+    );
+
   );
 
+  (gBitcrushDitherMode == 1) ? (
+    errorL = originalL - sL;
+    errorR = originalR - sR;
+    
+    /* // floyd-steinberg
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 1, errorL * 7 / 16);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 2, errorL * 1 / 16);
+
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 1, errorR * 7 / 16);
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 2, errorR * 1 / 16);
+    */
+
+    /*
+    // Burkes weights: 8/32, 4/32, 2/32, 4/32
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 1, errorL * 8 / 32);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 2, errorL * 4 / 32);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 3, errorL * 2 / 32);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 4, errorL * 4 / 32);
+
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 1, errorR * 8 / 16);
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 2, errorR * 4 / 16);
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 3, errorR * 2 / 16);
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 4, errorR * 4 / 16);
+    */
+    
+    // Jarvis-Judice-Ninke weights: 7/48, 5/48, 3/48, 5/48, 7/48, 5/48, 3/48, 1/48
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 1, errorL * 7 / 48);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 2, errorL * 5 / 48);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 3, errorL * 3 / 48);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 4, errorL * 5 / 48);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 5, errorL * 7 / 48);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 6, errorL * 5 / 48);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 7, errorL * 3 / 48);
+    RingBufferWrite(errorDiffusionSamplesL, memMax, errorDiffusionCursor + 8, errorL * 1 / 48);
+
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 1, errorR * 7 / 48);
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 2, errorR * 5 / 48);
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 3, errorR * 3 / 48);
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 4, errorR * 5 / 48);    
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 5, errorR * 7 / 48);    
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 6, errorR * 5 / 48);    
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 7, errorR * 3 / 48);    
+    RingBufferWrite(errorDiffusionSamplesR, memMax, errorDiffusionCursor + 8, errorR * 1 / 48);    
+    
+    errorDiffusionCursor = (errorDiffusionCursor + 1) % memMax;
+    
+    // Stucki weights: 8/42, 4/42, 2/42, 4/42, 8/42, 4/42, 2/42, 1/42
+  );
+
+  
   // gain compensate
   sL *= bitcrushGainCompensation;
   sR *= bitcrushGainCompensation;
   
 );
-
-//AAFilterOutputL = sL;
-//AAFilterOutputR = sR;
 
 aaFilter.butterworth_process(sL, sR);
 
@@ -316,7 +438,7 @@ sR += poly_blep(t, dt) * blepScaleR * doBlep;
 
 
 // delay buffer holding dry signal; this is to allow correct wet-dry mixing.
-rms -= memoryL[memCursor] * memoryR[memCursor] ; // shift out old sample
+rms -= memoryL[memCursor] * memoryL[memCursor] ; // shift out old sample
 rms -= memoryR[memCursor] * memoryR[memCursor] ; // shift out old sample
 rms += spl0 * spl0; // shift in new.
 rms += spl1 * spl1; // shift in new.
@@ -351,13 +473,11 @@ otm1R = 0.999 * otm1R + sR - itm1R;
 itm1R = sR;
 sR = otm1R;
 
-
 // M-S DECODE
 tmpL=sL;
-//  sR *= slider31;
+sR *= gStereoWidth;
 sL = sL + sR;
 sR = tmpL - sR;
-//);
 
 
 (wetDryMix < 0.5) ? (
@@ -370,4 +490,12 @@ sR = tmpL - sR;
 
 spl0 = sL;
 spl1 = sR;
+
+@gfx 100 5
+gfx_x=gfx_y=10;
+gfx_r = .2;
+gfx_g = gfx_b = 0.9;
+gfx_printf("Samplecrush: ");
+gfx_drawnumber(sampleCrushFrequency, 0);
+gfx_printf(" Hz");
 
