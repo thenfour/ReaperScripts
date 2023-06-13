@@ -1,0 +1,145 @@
+desc: MIDI CC value curve (tenfour)
+//tags: MIDI processing
+
+slider1:2<0,127,1>Midi CC
+slider2:0<0,127,1>Input range min
+slider3:127<0,127,1>Input range max
+slider4:0<0,127,1>Output range min
+slider5:127<0,127,1>Output range max
+slider6:0<-1,1,0.01>Curve
+
+/*
+
+1 = mod wheel
+2 = breath control
+7 = volume
+10 = pan
+11 = expression
+...
+
+*/
+
+in_pin:none
+out_pin:none
+
+@init
+
+gLastInput = 0;
+gLastOutput = 0;
+
+@slider
+
+gTargetCC = slider1;
+gInputRangeMin = slider2;
+gInputRangeMax = slider3;
+gOutputRangeMin = slider4;
+gOutputRangeMax = slider5;
+gCurve = slider6;
+
+@block
+
+function clamp(x, l, h)
+(
+  min(h, max(l, x))
+);
+
+function lerp(v0, v1, t)
+(
+  (1 - t) * v0 + t * v1;
+);
+
+function reverseLerp(a, b, value)
+(
+    (a == b) ? (
+      0;
+    ) : (
+      (value - a) / (b - a);
+    );
+);
+
+// valid for 0<k<1 and 0<x<1
+function modCurve_x01_k01(x, k)
+(
+    ret = 1 - pow(x, k);
+    pow(ret, 1.0 / k);
+);
+
+// extends range to support -1<x<0 and -1<k<0
+// outputs -1 to 1
+function modCurve_xN11_kN11(x, k)
+(
+    CornerMargin = 0.6;
+    k *= CornerMargin;
+    k = clamp(k, -CornerMargin, CornerMargin);
+    (k >= 0) ?
+    (
+        (x > 0) ?
+        (
+            1.0 - modCurve_x01_k01(x, 1.0 - k);
+        ) : (
+          modCurve_x01_k01(-x, 1.0 - k) - 1;
+        )
+    ) : (x > 0) ?
+    (
+        modCurve_x01_k01(1.0 - x, 1.0 + k);
+    ) : 
+    (
+      -modCurve_x01_k01(x + 1, 1.0 + k);
+    )
+);
+
+/*
+https://www.midi.org/specifications-old/item/table-2-expanded-messages-list-status-bytes
+https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
+status hi:
+
+                                                   map channel           gets filtered?
+8 = note off (low = channel)                           yes                  no
+9 = note on(low = channel)                             yes                  no
+10 = aftertouch(low = channel)                         yes                  no
+11 = CC(low = channel)                                 yes                 yes
+  msg2 = cc#
+    0= bank select msb
+    32=bank select lsb
+    ...
+  msg3 = value
+12 = program change(low = channel)                     yes                 yes
+13 = channel pressure/aftertouch (low = channel)       yes                 yes
+14 = pitch wheel (low = channel)                       yes                 yes
+15 = system messages where low nybble =                no                  yes
+
+*/
+
+while (
+  midirecv(ts, status, msg23) ? (
+    statusHi = (status/16)|0; // type of msg
+    statusLo = status-(statusHi*16)|0; // channel usually
+    msg3 = (msg23/256)|0; // cc value
+    msg2 = msg23-(msg3*256)|0; // cc #
+
+    ((statusHi == 11) && (msg2 == gTargetCC)) ? ( // CC for all channels
+      // modify value byte.
+      gLastInput = msg3;
+      msg3 = reverseLerp(gInputRangeMin, gInputRangeMax, msg3); // map to 0-1 based on inp range
+      msg3 = modCurve_xN11_kN11(msg3, gCurve); // apply curve
+      msg3 = lerp(gOutputRangeMin, gOutputRangeMax, msg3); // and map back to output range
+      gLastOutput = msg3;
+    );
+
+    status = (statusHi*16+statusLo)|0;// re-construct status from nybbles
+    msg23 = (msg3*256+msg2)|0; // re-construct msg23 value
+    midisend(ts,status,msg23);
+    1; // for the while loop to function
+  );
+);
+
+@gfx 512 64 // request horizontal/vertical heights
+  gfx_x=gfx_y=0;
+  gfx_r=gfx_g=gfx_b=.5;
+  gfx_rectto(gLastInput * 4,32);
+
+  gfx_x=0;gfx_y=32;
+  gfx_r=gfx_g=gfx_b=.5;
+  gfx_rectto(gLastOutput * 4,64);
+
+
